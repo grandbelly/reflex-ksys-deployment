@@ -1,0 +1,30 @@
+# Forecast Scheduler 전용 경량 Dockerfile
+# 예상 크기: 3-5GB (기존 20.5GB에서 대폭 축소)
+
+FROM python:3.13-slim
+
+# 작업 디렉토리
+WORKDIR /app
+
+# 시스템 패키지 최소화 (빌드 도구만)
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+# Scheduler 전용 requirements 설치
+COPY schedulers/requirements.txt /app/schedulers/
+RUN pip install --no-cache-dir -r /app/schedulers/requirements.txt
+
+# 애플리케이션 코드 복사
+COPY ksys_app/ /app/ksys_app/
+
+# 환경 변수 (docker-compose.yml에서 주입)
+ENV PYTHONUNBUFFERED=1
+ENV TZ=Asia/Seoul
+
+# 헬스체크
+HEALTHCHECK --interval=60s --timeout=10s --start-period=30s --retries=3 \
+    CMD python -c "import asyncio; from ksys_app.db_orm import get_async_session; asyncio.run(get_async_session().__anext__())"
+
+# Scheduler 실행
+CMD ["python", "-u", "ksys_app/schedulers/run_schedulers.py"]

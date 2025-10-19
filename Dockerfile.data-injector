@@ -1,0 +1,17 @@
+FROM python:3.13-slim
+
+WORKDIR /app
+
+# Install dependencies
+RUN pip install --no-cache-dir asyncpg pytz
+
+# Copy injection script
+COPY inject_virtual_data.py /app/
+
+# Set environment for Docker
+ENV DB_HOST=pgai-db
+ENV DB_PORT=5432
+ENV PYTHONUNBUFFERED=1
+
+# Run injection loop (5-minute interval)
+CMD ["python", "-u", "inject_virtual_data.py"]

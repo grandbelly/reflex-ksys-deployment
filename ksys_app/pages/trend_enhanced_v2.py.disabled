@@ -1,0 +1,558 @@
+"""개선된 트렌드 페이지 - 집계 뷰 직접 선택 가능"""
+import reflex as rx
+from ..states.dashboard import DashboardState as D
+from ..components.layout import shell
+
+
+def _create_gradient(color: str, id: str):
+    """차트용 그라데이션 정의"""
+    return rx.el.defs(
+        rx.el.linear_gradient(
+            rx.el.stop(offset="0%", stop_color=color, stop_opacity=0.3),
+            rx.el.stop(offset="95%", stop_color=color, stop_opacity=0.05),
+            id=id,
+            x1="0", y1="0", x2="0", y2="1"
+        )
+    )
+
+
+def chart_mode_selector() -> rx.Component:
+    """차트 모드 선택자"""
+    return rx.segmented_control.root(
+        rx.segmented_control.item("Area", value="area"),
+        rx.segmented_control.item("Line", value="line"),
+        rx.segmented_control.item("Bar", value="bar"),
+        rx.segmented_control.item("Composed", value="composed"),
+        value=D.chart_mode,
+        size="2",
+        on_change=D.set_chart_mode
+    )
+
+def trend_toggle_group() -> rx.Component:
+    """트렌드 선택 세그먼트 컨트롤"""
+    return rx.segmented_control.root(
+        rx.segmented_control.item("Average", value="avg"),
+        rx.segmented_control.item("Minimum", value="min"),
+        rx.segmented_control.item("Maximum", value="max"),
+        rx.segmented_control.item("First", value="first"),
+        rx.segmented_control.item("Last", value="last"),
+        value=D.trend_selected,
+        on_change=D.set_trend_selected,
+        disabled=rx.cond(D.chart_mode == "composed", True, False),
+        size="2"
+    )
+
+
+def aggregation_info_badge() -> rx.Component:
+    """현재 선택된 집계 뷰와 시간 범위를 표시하는 배지"""
+    aggregation_labels = {
+        "1m": "1분 집계",
+        "10m": "10분 집계",
+        "1h": "1시간 집계",
+        "1d": "1일 집계"
+    }
+
+    time_range_labels = {
+        "1h": "최근 1시간",
+        "24h": "최근 24시간",
+        "7d": "최근 7일",
+        "30d": "최근 30일"
+    }
+
+    return rx.hstack(
+        rx.badge(
+            rx.hstack(
+                rx.icon("database", size=12),
+                rx.text(
+                    rx.cond(
+                        D.aggregation_view == "1m", "1분 집계",
+                        rx.cond(
+                            D.aggregation_view == "10m", "10분 집계",
+                            rx.cond(
+                                D.aggregation_view == "1h", "1시간 집계",
+                                rx.cond(
+                                    D.aggregation_view == "1d", "1일 집계",
+                                    "알 수 없음"
+                                )
+                            )
+                        )
+                    ),
+                    size="1"
+                ),
+                spacing="1"
+            ),
+            color_scheme="blue",
+            variant="soft"
+        ),
+        rx.badge(
+            rx.hstack(
+                rx.icon("clock", size=12),
+                rx.text(
+                    rx.cond(
+                        D.time_range == "1 hour", "최근 1시간",
+                        rx.cond(
+                            D.time_range == "6 hours", "최근 6시간",
+                            rx.cond(
+                                D.time_range == "24 hours", "최근 24시간",
+                                rx.cond(
+                                    D.time_range == "7 days", "최근 7일",
+                                    rx.cond(
+                                        D.time_range == "30 days", "최근 30일",
+                                        D.time_range  # 기본값 그대로 표시
+                                    )
+                                )
+                            )
+                        )
+                    ),
+                    size="1"
+                ),
+                spacing="1"
+            ),
+            color_scheme="green",
+            variant="soft"
+        ),
+        spacing="2"
+    )
+
+
+def trend_chart_area() -> rx.Component:
+    """개선된 차트 영역 - 반응형 및 다양한 차트 타입 지원"""
+    # Area Chart
+    area_chart = rx.box(
+        rx.recharts.area_chart(
+            _create_gradient("#3b82f6", "blueGradient"),
+            rx.recharts.cartesian_grid(
+                stroke_dasharray="3 3",
+                stroke="#f3f4f6",
+                opacity=0.5
+            ),
+            rx.recharts.area(
+                data_key=D.trend_selected,
+                stroke="#3b82f6",
+                fill="url(#blueGradient)",
+                type_="monotone",
+                stroke_width=2,
+                dot=False
+            ),
+            rx.recharts.x_axis(
+                data_key="bucket_formatted",
+                stroke="#e5e7eb",
+                tick={"fill": "#6b7280", "fontSize": 10, "angle": -45, "textAnchor": "end"},
+                height=50
+            ),
+            rx.recharts.y_axis(
+                stroke="#e5e7eb",
+                tick={"fill": "#6b7280", "fontSize": 11},
+                domain=["dataMin - 5", "dataMax + 5"]
+            ),
+            rx.recharts.tooltip(
+                content_style={
+                    "backgroundColor": "white",
+                    "border": "1px solid #e5e7eb",
+                    "borderRadius": "8px",
+                    "boxShadow": "0 2px 4px rgba(0,0,0,0.1)"
+                }
+            ),
+            rx.recharts.legend(
+                vertical_align="top",
+                height=36
+            ),
+            data=D.series_for_tag,
+            width="100%",
+            height=400,
+            margin={"top": 40, "right": 30, "bottom": 30, "left": 60}
+        ),
+        width="100%"
+    )
+
+    # Line Chart
+    line_chart = rx.box(
+        rx.recharts.line_chart(
+            rx.recharts.cartesian_grid(
+                stroke_dasharray="3 3",
+                stroke="#f3f4f6"
+            ),
+            rx.recharts.line(
+                data_key=D.trend_selected,
+                stroke="#3b82f6",
+                stroke_width=2,
+                dot={"r": 3},
+                active_dot={"r": 5}
+            ),
+            rx.recharts.x_axis(
+                data_key="bucket_formatted",
+                stroke="#e5e7eb",
+                tick={"fill": "#6b7280", "fontSize": 10, "angle": -45, "textAnchor": "end"},
+                height=50
+            ),
+            rx.recharts.y_axis(
+                stroke="#e5e7eb",
+                tick={"fill": "#6b7280", "fontSize": 11}
+            ),
+            rx.recharts.tooltip(),
+            rx.recharts.legend(
+                vertical_align="top",
+                height=36
+            ),
+            data=D.series_for_tag,
+            width="100%",
+            height=400,
+            margin={"top": 40, "right": 30, "bottom": 30, "left": 60}
+        ),
+        width="100%"
+    )
+
+    # Bar Chart
+    bar_chart = rx.box(
+        rx.recharts.bar_chart(
+            rx.recharts.cartesian_grid(
+                stroke_dasharray="3 3",
+                stroke="#f3f4f6"
+            ),
+            rx.recharts.bar(
+                data_key=D.trend_selected,
+                fill="#3b82f6",
+                radius=[4, 4, 0, 0]
+            ),
+            rx.recharts.x_axis(
+                data_key="bucket_formatted",
+                stroke="#e5e7eb",
+                tick={"fill": "#6b7280", "fontSize": 10, "angle": -45, "textAnchor": "end"},
+                height=50
+            ),
+            rx.recharts.y_axis(
+                stroke="#e5e7eb",
+                tick={"fill": "#6b7280", "fontSize": 11}
+            ),
+            rx.recharts.tooltip(),
+            rx.recharts.legend(
+                vertical_align="top",
+                height=36
+            ),
+            data=D.series_for_tag,
+            width="100%",
+            height=400,
+            margin={"top": 40, "right": 30, "bottom": 50, "left": 60}
+        ),
+        width="100%"
+    )
+
+    # Composed Chart (Line + Bar)
+    composed_chart = rx.box(
+        rx.recharts.composed_chart(
+            rx.recharts.cartesian_grid(
+                stroke_dasharray="3 3",
+                stroke="#f3f4f6"
+            ),
+            rx.recharts.bar(
+                data_key="avg",
+                fill="#e0e7ff",
+                fill_opacity=0.8,
+                name="Average"
+            ),
+            rx.recharts.line(
+                data_key="max",
+                stroke="#ef4444",
+                stroke_width=2,
+                dot=False,
+                name="Maximum"
+            ),
+            rx.recharts.line(
+                data_key="min",
+                stroke="#10b981",
+                stroke_width=2,
+                dot=False,
+                name="Minimum"
+            ),
+            rx.recharts.x_axis(
+                data_key="bucket_formatted",
+                stroke="#e5e7eb",
+                tick={"fill": "#6b7280", "fontSize": 10, "angle": -45, "textAnchor": "end"},
+                height=50
+            ),
+            rx.recharts.y_axis(
+                stroke="#e5e7eb",
+                tick={"fill": "#6b7280", "fontSize": 11}
+            ),
+            rx.recharts.tooltip(),
+            rx.recharts.legend(
+                vertical_align="top",
+                height=36
+            ),
+            data=D.series_for_tag,
+            width="100%",
+            height=400,
+            margin={"top": 40, "right": 30, "bottom": 50, "left": 60}
+        ),
+        width="100%"
+    )
+
+    return rx.cond(
+        D.series_for_tag,
+        rx.cond(
+            D.chart_mode == "line",
+            line_chart,
+            rx.cond(
+                D.chart_mode == "bar",
+                bar_chart,
+                rx.cond(
+                    D.chart_mode == "composed",
+                    composed_chart,
+                    area_chart  # default
+                )
+            )
+        ),
+        rx.center(
+            rx.vstack(
+                rx.icon("chart-line", size=48, color="gray"),
+                rx.text("차트 데이터가 없습니다", size="3", color="gray"),
+                rx.text("필터를 조정하고 다시 로드하세요", size="2", color="gray"),
+                spacing="3",
+                align="center"
+            ),
+            height="400px",
+            class_name="border-2 border-dashed border-gray-200 rounded-lg"
+        )
+    )
+
+
+def trend_page_enhanced_v2() -> rx.Component:
+    """개선된 트렌드 페이지 v2"""
+    return shell(
+        rx.vstack(
+            # 상단 컨트롤 영역 - 개선된 레이아웃
+            rx.card(
+                rx.vstack(
+                    # 첫 번째 줄: 태그 선택과 집계 뷰 선택
+                    rx.hstack(
+                        rx.flex(
+                            rx.icon("tag", size=16, color="gray"),
+                            rx.text("태그 선택", size="2", weight="medium", color="gray"),
+                            spacing="2",
+                            align="center"
+                        ),
+                        rx.el.select(
+                            rx.foreach(D.tags, lambda t: rx.el.option(t, value=t)),
+                            value=rx.cond(D.tag_name, D.tag_name, ""),
+                            on_change=[D.set_tag_select, D.load],
+                            class_name="bg-white text-gray-900 px-3 py-2 rounded-lg border-2 border-blue-200 w-40 focus:ring-2 focus:ring-blue-500"
+                        ),
+
+                        rx.flex(
+                            rx.icon("layers", size=16, color="gray"),
+                            rx.text("집계 단위", size="2", weight="medium", color="gray"),
+                            spacing="2",
+                            align="center"
+                        ),
+                        rx.el.select(
+                            rx.el.option("1분 집계", value="1m"),
+                            rx.el.option("10분 집계", value="10m"),
+                            rx.el.option("1시간 집계", value="1h"),
+                            rx.el.option("1일 집계", value="1d"),
+                            value=D.aggregation_view,
+                            on_change=[D.set_aggregation_view, D.load],
+                            class_name="bg-white text-gray-900 px-3 py-2 rounded-lg border-2 border-green-200 w-32 focus:ring-2 focus:ring-green-500"
+                        ),
+
+                        rx.flex(
+                            rx.icon("calendar", size=16, color="gray"),
+                            rx.text("조회 기간", size="2", weight="medium", color="gray"),
+                            spacing="2",
+                            align="center"
+                        ),
+                        rx.el.select(
+                            # 동적으로 생성된 시간 범위 옵션 사용
+                            rx.foreach(
+                                D.time_range_options,
+                                lambda opt: rx.el.option(
+                                    opt["label"],
+                                    value=opt["value"]
+                                )
+                            ),
+                            value=D.time_range,
+                            on_change=[D.set_time_range, D.load],
+                            class_name="bg-white text-gray-900 px-3 py-2 rounded-lg border-2 border-orange-200 w-48 focus:ring-2 focus:ring-orange-500"
+                        ),
+
+                        rx.button(
+                            rx.icon("refresh-cw", size=16),
+                            "새로고침",
+                            on_click=D.load,
+                            variant="soft",
+                            color_scheme="gray",
+                            size="2"
+                        ),
+
+                        spacing="4",
+                        align="center",
+                        wrap="wrap"
+                    ),
+
+                    # 두 번째 줄: 현재 상태 표시
+                    rx.divider(),
+                    rx.hstack(
+                        rx.text(
+                            rx.cond(
+                                D.tag_name,
+                                rx.fragment(
+                                    rx.icon("activity", size=16, color="blue"),
+                                    " ",
+                                    D.tag_name,
+                                    " 센서 트렌드"
+                                ),
+                                "태그를 선택하세요"
+                            ),
+                            size="3",
+                            weight="bold"
+                        ),
+                        rx.spacer(),
+                        aggregation_info_badge(),
+                        align="center",
+                        width="100%"
+                    ),
+
+                    spacing="3"
+                ),
+                class_name="mb-4 bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 shadow-md"
+            ),
+
+            # 차트 영역 - 반응형 개선
+            rx.card(
+                rx.vstack(
+                    # 차트 타입 선택과 데이터 선택
+                    rx.hstack(
+                        rx.vstack(
+                            rx.text("차트 타입", size="2", weight="medium", color="gray"),
+                            chart_mode_selector(),
+                            spacing="1"
+                        ),
+                        rx.spacer(),
+                        rx.vstack(
+                            rx.text("데이터 선택", size="2", weight="medium", color="gray"),
+                            trend_toggle_group(),
+                            spacing="1"
+                        ),
+                        width="100%",
+                        align="start"
+                    ),
+
+                    rx.divider(),
+
+                    # 차트 렌더링 - 반응형 컨테이너
+                    rx.box(
+                        trend_chart_area(),
+                        width="100%",
+                        min_height="400px",
+                        style={
+                            "resize": "vertical",
+                            "overflow": "auto"
+                        }
+                    ),
+
+                    spacing="3",
+                    width="100%"
+                ),
+                class_name="mb-4",
+                width="100%"
+            ),
+
+            # 데이터 테이블 - 반응형 개선
+            rx.card(
+                rx.vstack(
+                    rx.hstack(
+                        rx.heading("Historical Data", size="4", weight="bold"),
+                        rx.spacer(),
+                        rx.hstack(
+                            rx.badge(
+                                rx.cond(
+                                    D.series_for_tag,
+                                    rx.fragment(
+                                        rx.text(D.series_count_s),
+                                        " rows"
+                                    ),
+                                    "No data"
+                                ),
+                                color_scheme="gray"
+                            ),
+                            rx.button(
+                                rx.icon("download", size=16),
+                                "CSV 내보내기",
+                                on_click=D.export_csv,
+                                variant="soft",
+                                color_scheme="green",
+                                size="2",
+                                disabled=rx.cond(D.series_for_tag, False, True)
+                            ),
+                            spacing="3"
+                        ),
+                        align="center",
+                        width="100%"
+                    ),
+
+                    rx.divider(),
+
+                    rx.cond(
+                        D.series_for_tag,
+                        rx.box(
+                            rx.table.root(
+                                rx.table.header(
+                                    rx.table.row(
+                                        rx.table.column_header_cell("No."),
+                                        rx.table.column_header_cell("Tag"),
+                                        rx.table.column_header_cell("Timestamp"),
+                                        rx.table.column_header_cell("Average"),
+                                        rx.table.column_header_cell("Min"),
+                                        rx.table.column_header_cell("Max"),
+                                        rx.table.column_header_cell("Last"),
+                                        rx.table.column_header_cell("First"),
+                                        rx.table.column_header_cell("Count")
+                                    )
+                                ),
+                                rx.table.body(
+                                    rx.foreach(
+                                        D.series_for_tag_desc_with_num,
+                                        lambda row: rx.table.row(
+                                            rx.table.cell(row["No"]),
+                                            rx.table.cell(row["Tag"]),
+                                            rx.table.cell(row["Timestamp"]),
+                                            rx.table.cell(row["Average"]),
+                                            rx.table.cell(row["Min"]),
+                                            rx.table.cell(row["Max"]),
+                                            rx.table.cell(row["Last"]),
+                                            rx.table.cell(row["First"]),
+                                            rx.table.cell(row["Count"])
+                                        )
+                                    )
+                                ),
+                                width="100%",
+                                variant="surface",
+                                size="2"
+                            ),
+                            class_name="w-full overflow-x-auto"
+                        ),
+                        rx.center(
+                            rx.vstack(
+                                rx.icon("database", size=48, color="gray"),
+                                rx.text("데이터가 없습니다", size="3", color="gray"),
+                                rx.text("태그를 선택하고 조회 기간을 설정하세요", size="2", color="gray"),
+                                spacing="3",
+                                align="center"
+                            ),
+                            height="300px",
+                            class_name="border-2 border-dashed border-gray-200 rounded-lg"
+                        )
+                    ),
+
+                    spacing="3",
+                    width="100%"
+                ),
+                width="100%"
+            ),
+
+            spacing="4",
+            width="100%",
+            class_name="p-4 max-w-full"
+        ),
+        active_route="/trend_v2",
+        on_mount=D.load
+    )

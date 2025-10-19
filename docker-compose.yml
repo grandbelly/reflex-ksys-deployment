@@ -1,0 +1,70 @@
+version: "3.8"
+
+services:
+  # Reflex Application
+  reflex-app:
+    build: .
+    container_name: reflex-ksys-app
+    ports:
+      - "13000:13000"  # Frontend
+      - "13001:13001"  # Backend
+    environment:
+      - DOCKER_ENV=true
+      - DB_TARGET=pgai
+      # Database connection - UPDATE THIS to point to your TimescaleDB instance
+      - TS_DSN=postgresql://postgres:postgres@pgai-db:5432/ecoanp?sslmode=disable
+      - POSTGRES_CONNECTION_STRING=postgresql://postgres:postgres@pgai-db:5432/ecoanp?sslmode=disable
+      - APP_ENV=development
+      - TZ=Asia/Seoul
+      - VERSION_TYPE=FULL
+      - ENABLE_AI_FEATURES=true  # Set to false to disable AI features
+    volumes:
+      - ./ksys_app:/app/ksys_app
+      - ./rxconfig.py:/app/rxconfig.py
+      - ./logs:/app/logs
+    networks:
+      - reflex-network
+    restart: unless-stopped
+
+  # Forecasting Schedulers Service
+  # Runs 3 background schedulers:
+  # - ForecastScheduler: Every 5 minutes (generates predictions)
+  # - ActualValueUpdater: Every 10 minutes (backfills actual values)
+  # - PerformanceAggregator: Every 1 hour (calculates metrics)
+  forecast-scheduler:
+    build:
+      context: .
+      dockerfile: schedulers/Dockerfile
+    container_name: forecast-scheduler
+    environment:
+      - DOCKER_ENV=true
+      - DB_TARGET=pgai
+      # Database connection - UPDATE THIS to point to your TimescaleDB instance
+      - TS_DSN=postgresql://postgres:postgres@pgai-db:5432/ecoanp?sslmode=disable
+      - POSTGRES_CONNECTION_STRING=postgresql://postgres:postgres@pgai-db:5432/ecoanp?sslmode=disable
+      - APP_ENV=development
+      - TZ=Asia/Seoul
+    volumes:
+      - ./ksys_app:/app/ksys_app
+      - ./saved_models:/app/saved_models
+      - ./logs:/app/logs
+    networks:
+      - reflex-network
+    restart: unless-stopped
+
+  # Virtual Data Injector (for testing without real hardware)
+  # Comment out this service in production
+  data-injector:
+    build:
+      context: .
+      dockerfile: Dockerfile.data-injector
+    container_name: data-injector
+    environment:
+      - TZ=Asia/Seoul
+    networks:
+      - reflex-network
+    restart: unless-stopped
+
+networks:
+  reflex-network:
+    driver: bridge

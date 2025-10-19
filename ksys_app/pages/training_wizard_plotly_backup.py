@@ -1,0 +1,1424 @@
+"""
+Training Wizard - Step-by-Step Training Workflow
+순차적 워크플로우로 사용자가 단계별로 진행
+
+Steps:
+1. Sensor Selection
+2. Model Selection
+3. Feature Configuration
+4. Training Parameters
+5. Execute Training
+6. View Results
+
+Route: /training/wizard
+"""
+
+import reflex as rx
+from ..states.training_wizard_state import TrainingWizardState
+from ..components.forecast_chart_plotly import forecast_chart_component
+from ..components.layout import shell
+
+
+def wizard_header() -> rx.Component:
+    """Wizard 헤더 - 현재 단계 표시"""
+    return rx.vstack(
+        rx.heading("ML Training Wizard", size="6"),
+        rx.text("Follow the steps to train your model", size="3", color="gray"),
+
+        # Progress indicator
+        rx.hstack(
+            # Step 1
+            rx.vstack(
+                rx.cond(
+                    TrainingWizardState.wizard_step >= 1,
+                    rx.badge("1", color_scheme="green", size="3"),
+                    rx.badge("1", variant="soft", size="3"),
+                ),
+                rx.text("Sensor", size="1", color="gray"),
+                align="center",
+                spacing="1",
+            ),
+            rx.text("→", size="4", color="gray"),
+
+            # Step 2
+            rx.vstack(
+                rx.cond(
+                    TrainingWizardState.wizard_step >= 2,
+                    rx.badge("2", color_scheme="green", size="3"),
+                    rx.badge("2", variant="soft", size="3"),
+                ),
+                rx.text("Model", size="1", color="gray"),
+                align="center",
+                spacing="1",
+            ),
+            rx.text("→", size="4", color="gray"),
+
+            # Step 3
+            rx.vstack(
+                rx.cond(
+                    TrainingWizardState.wizard_step >= 3,
+                    rx.badge("3", color_scheme="green", size="3"),
+                    rx.badge("3", variant="soft", size="3"),
+                ),
+                rx.text("Features", size="1", color="gray"),
+                align="center",
+                spacing="1",
+            ),
+            rx.text("→", size="4", color="gray"),
+
+            # Step 4
+            rx.vstack(
+                rx.cond(
+                    TrainingWizardState.wizard_step >= 4,
+                    rx.badge("4", color_scheme="green", size="3"),
+                    rx.badge("4", variant="soft", size="3"),
+                ),
+                rx.text("Params", size="1", color="gray"),
+                align="center",
+                spacing="1",
+            ),
+            rx.text("→", size="4", color="gray"),
+
+            # Step 5
+            rx.vstack(
+                rx.cond(
+                    TrainingWizardState.wizard_step >= 5,
+                    rx.badge("5", color_scheme="green", size="3"),
+                    rx.badge("5", variant="soft", size="3"),
+                ),
+                rx.text("Train", size="1", color="gray"),
+                align="center",
+                spacing="1",
+            ),
+            rx.text("→", size="4", color="gray"),
+
+            # Step 6
+            rx.vstack(
+                rx.cond(
+                    TrainingWizardState.wizard_step >= 6,
+                    rx.badge("6", color_scheme="green", size="3"),
+                    rx.badge("6", variant="soft", size="3"),
+                ),
+                rx.text("Results", size="1", color="gray"),
+                align="center",
+                spacing="1",
+            ),
+
+            spacing="3",
+            align="center",
+        ),
+
+        spacing="4",
+        align="center",
+    )
+
+
+def step_1_sensor() -> rx.Component:
+    """Step 1: Sensor Selection"""
+    return rx.vstack(
+        rx.heading("Step 1: Select Sensor", size="5"),
+        rx.text("Choose the sensor tag you want to train a model for", color="gray"),
+
+        rx.vstack(
+            rx.select(
+                TrainingWizardState.available_tags,
+                placeholder="Select sensor tag...",
+                value=TrainingWizardState.selected_tag,
+                on_change=TrainingWizardState.set_selected_tag,
+                width="100%",
+                size="3",
+            ),
+
+            rx.cond(
+                TrainingWizardState.selected_tag,
+                rx.callout(
+                    f"Selected: {TrainingWizardState.selected_tag}",
+                    icon="check-circle",
+                    color_scheme="green",
+                ),
+            ),
+
+            spacing="3",
+            width="100%",
+        ),
+
+        spacing="4",
+        width="100%",
+    )
+
+
+def step_2_model() -> rx.Component:
+    """Step 2: Model Selection"""
+    return rx.vstack(
+        rx.heading("Step 2: Select Model", size="5"),
+        rx.text("Choose the forecasting algorithm", color="gray"),
+
+        rx.vstack(
+            # Model cards
+            rx.grid(
+                # Auto ARIMA
+                rx.box(
+                    rx.vstack(
+                        rx.heading("Auto ARIMA", size="3"),
+                        rx.text("Automatic ARIMA with seasonal support", size="2", color="gray"),
+                        rx.text("✓ Best for seasonal patterns", size="1", color="green"),
+                        rx.text("✓ Automatic parameter tuning", size="1", color="green"),
+                        rx.button(
+                            "Select",
+                            on_click=lambda: TrainingWizardState.set_selected_model("auto_arima"),
+                            size="2",
+                            width="100%",
+                            variant=rx.cond(
+                                TrainingWizardState.selected_model == "auto_arima",
+                                "solid",
+                                "soft"
+                            ),
+                        ),
+                        spacing="2",
+                    ),
+                    padding="4",
+                    border_radius="md",
+                    border=f"2px solid {rx.cond(TrainingWizardState.selected_model == 'auto_arima', rx.color('green', 8), rx.color('gray', 6))}",
+                    bg=rx.cond(
+                        TrainingWizardState.selected_model == "auto_arima",
+                        rx.color("green", 2),
+                        rx.color("gray", 1)
+                    ),
+                ),
+
+                # Prophet
+                rx.box(
+                    rx.vstack(
+                        rx.heading("Prophet", size="3"),
+                        rx.text("Facebook's forecasting tool", size="2", color="gray"),
+                        rx.text("✓ Handles missing data well", size="1", color="green"),
+                        rx.text("✓ Good for trends", size="1", color="green"),
+                        rx.button(
+                            "Select",
+                            on_click=lambda: TrainingWizardState.set_selected_model("prophet"),
+                            size="2",
+                            width="100%",
+                            variant=rx.cond(
+                                TrainingWizardState.selected_model == "prophet",
+                                "solid",
+                                "soft"
+                            ),
+                        ),
+                        spacing="2",
+                    ),
+                    padding="4",
+                    border_radius="md",
+                    border=f"2px solid {rx.cond(TrainingWizardState.selected_model == 'prophet', rx.color('blue', 8), rx.color('gray', 6))}",
+                    bg=rx.cond(
+                        TrainingWizardState.selected_model == "prophet",
+                        rx.color("blue", 2),
+                        rx.color("gray", 1)
+                    ),
+                ),
+
+                # XGBoost
+                rx.box(
+                    rx.vstack(
+                        rx.heading("XGBoost", size="3"),
+                        rx.text("Gradient boosting algorithm", size="2", color="gray"),
+                        rx.text("✓ High accuracy", size="1", color="green"),
+                        rx.text("⚠ Requires features", size="1", color="orange"),
+                        rx.button(
+                            "Select",
+                            on_click=lambda: TrainingWizardState.set_selected_model("xgboost"),
+                            size="2",
+                            width="100%",
+                            variant=rx.cond(
+                                TrainingWizardState.selected_model == "xgboost",
+                                "solid",
+                                "soft"
+                            ),
+                        ),
+                        spacing="2",
+                    ),
+                    padding="4",
+                    border_radius="md",
+                    border=f"2px solid {rx.cond(TrainingWizardState.selected_model == 'xgboost', rx.color('purple', 8), rx.color('gray', 6))}",
+                    bg=rx.cond(
+                        TrainingWizardState.selected_model == "xgboost",
+                        rx.color("purple", 2),
+                        rx.color("gray", 1)
+                    ),
+                ),
+
+                columns="3",
+                spacing="4",
+                width="100%",
+            ),
+
+            spacing="3",
+            width="100%",
+        ),
+
+        spacing="4",
+        width="100%",
+    )
+
+
+def step_3_features() -> rx.Component:
+    """Step 3: Feature Configuration"""
+    return rx.vstack(
+        rx.heading("Step 3: Configure Features", size="5"),
+        rx.text("Choose between pure ARIMA or add feature engineering", color="gray"),
+
+        rx.vstack(
+            # Option 1: Skip Feature Engineering (Pure ARIMA)
+            rx.box(
+                rx.checkbox(
+                    "Use Pure Auto-ARIMA (no external features)",
+                    checked=TrainingWizardState.skip_feature_engineering,
+                    on_change=TrainingWizardState.toggle_skip_features,
+                    size="3",
+                ),
+                padding="3",
+                border_radius="md",
+                bg=rx.color("blue", 2),
+                border=f"1px solid {rx.color('blue', 6)}",
+                width="100%",
+            ),
+
+            # Feature Engineering Options (hidden if skipped)
+            rx.cond(
+                ~TrainingWizardState.skip_feature_engineering,
+                rx.vstack(
+                    rx.divider(),
+
+                    # Create new or load existing
+                    rx.hstack(
+                        rx.button(
+                            "Create New Configuration",
+                            on_click=TrainingWizardState.toggle_feature_creator,
+                            size="2",
+                            variant="soft",
+                            color_scheme="blue",
+                        ),
+                        spacing="2",
+                        width="100%",
+                    ),
+
+                    # Feature Creator (collapsed by default)
+                    rx.cond(
+                        TrainingWizardState.show_feature_creator,
+                        rx.box(
+                            rx.vstack(
+                                rx.heading("Create Feature Configuration", size="3"),
+
+                                # Config name
+                                rx.vstack(
+                                    rx.text("Configuration Name:", weight="bold"),
+                                    rx.input(
+                                        placeholder="e.g., my_features",
+                                        value=TrainingWizardState.new_config_name,
+                                        on_change=TrainingWizardState.set_new_config_name,
+                                        width="100%",
+                                    ),
+                                    spacing="1",
+                                ),
+
+                                # Rolling Features (optimized for RO membrane monitoring)
+                                rx.vstack(
+                                    rx.text("Rolling Window Features (10-min data):", weight="bold"),
+                                    rx.text("Optimal ranges for fouling detection", size="1", color="gray"),
+                                    rx.hstack(
+                                        rx.checkbox("30min (3p) - rapid", value="3", on_change=lambda: TrainingWizardState.toggle_rolling_feature("3")),
+                                        rx.checkbox("3h (18p) - trend", value="18", on_change=lambda: TrainingWizardState.toggle_rolling_feature("18")),
+                                        rx.checkbox("12h (72p) - accumulation", value="72", on_change=lambda: TrainingWizardState.toggle_rolling_feature("72")),
+                                        rx.checkbox("24h (144p) - cycle", value="144", on_change=lambda: TrainingWizardState.toggle_rolling_feature("144")),
+                                        spacing="3",
+                                        wrap="wrap",
+                                    ),
+                                    spacing="2",
+                                ),
+
+                                # Temporal Features
+                                rx.vstack(
+                                    rx.text("Temporal Features:", weight="bold"),
+                                    rx.hstack(
+                                        rx.checkbox("Hour of day", value="hour", on_change=lambda: TrainingWizardState.toggle_temporal_feature("hour")),
+                                        rx.checkbox("Day of week", value="day_of_week", on_change=lambda: TrainingWizardState.toggle_temporal_feature("day_of_week")),
+                                        rx.checkbox("Is weekend", value="is_weekend", on_change=lambda: TrainingWizardState.toggle_temporal_feature("is_weekend")),
+                                        spacing="3",
+                                        wrap="wrap",
+                                    ),
+                                    spacing="2",
+                                ),
+
+                                # Create button
+                                rx.hstack(
+                                    rx.button(
+                                        "Cancel",
+                                        on_click=TrainingWizardState.toggle_feature_creator,
+                                        size="2",
+                                        variant="soft",
+                                        color_scheme="gray",
+                                    ),
+                                    rx.button(
+                                        "Create Configuration",
+                                        on_click=TrainingWizardState.create_feature_config,
+                                        size="2",
+                                        variant="solid",
+                                        color_scheme="green",
+                                    ),
+                                    spacing="2",
+                                    justify="end",
+                                    width="100%",
+                                ),
+
+                                spacing="4",
+                            ),
+                            padding="4",
+                            border_radius="md",
+                            border=f"1px solid {rx.color('blue', 6)}",
+                            bg=rx.color("blue", 2),
+                        ),
+                    ),
+
+                    # Load existing config
+                    rx.vstack(
+                        rx.text("Or Load Existing Configuration:", weight="bold"),
+                        rx.select(
+                            TrainingWizardState.available_feature_configs,
+                            placeholder="Select feature config...",
+                            value=TrainingWizardState.selected_feature_config,
+                            on_change=TrainingWizardState.load_feature_config,
+                            width="100%",
+                            size="3",
+                        ),
+                        spacing="2",
+                    ),
+
+                    # Display loaded config
+                    rx.cond(
+                        TrainingWizardState.feature_config_loaded,
+                        rx.box(
+                            rx.vstack(
+                                rx.heading("Loaded Features", size="3"),
+                                rx.grid(
+                                    rx.vstack(
+                                        rx.heading(TrainingWizardState.feature_counts['rolling'], size="6", color="green"),
+                                        rx.text("Rolling Features", size="2", color="gray"),
+                                        align="center",
+                                        spacing="1",
+                                    ),
+                                    rx.vstack(
+                                        rx.heading(TrainingWizardState.feature_counts['temporal'], size="6", color="purple"),
+                                        rx.text("Temporal Features", size="2", color="gray"),
+                                        align="center",
+                                        spacing="1",
+                                    ),
+                                    columns="2",
+                                    spacing="4",
+                                ),
+                                spacing="3",
+                            ),
+                            padding="4",
+                            border_radius="md",
+                            border=f"1px solid {rx.color('green', 6)}",
+                            bg=rx.color("green", 2),
+                        ),
+                    ),
+
+                    spacing="4",
+                    width="100%",
+                ),
+            ),
+
+            spacing="4",
+            width="100%",
+        ),
+
+        spacing="4",
+        width="100%",
+    )
+
+def step_4_params() -> rx.Component:
+    """Step 4: Training Parameters"""
+    return rx.vstack(
+        rx.heading("Step 4: Set Training Parameters", size="5"),
+        rx.text("Configure how the model will be trained", color="gray"),
+
+        rx.vstack(
+            # Data parameters
+            rx.vstack(
+                rx.heading("Data Configuration", size="3"),
+                rx.grid(
+                    rx.vstack(
+                        rx.text("Training Days:", weight="bold"),
+                        rx.input(type="number", 
+                            value=TrainingWizardState.training_days,
+                            on_change=TrainingWizardState.set_training_days,
+                            min_=1,
+                            max_=30,
+                            width="100%",
+                        ),
+                        rx.text("Amount of historical data", size="1", color="gray"),
+                        spacing="1",
+                        width="100%",
+                    ),
+                    rx.vstack(
+                        rx.text("Forecast Horizon:", weight="bold"),
+                        rx.input(type="number", 
+                            value=TrainingWizardState.forecast_horizon,
+                            on_change=TrainingWizardState.set_forecast_horizon,
+                            min_=1,
+                            max_=144,
+                            width="100%",
+                        ),
+                        rx.text("Periods to predict (10-min intervals, e.g., 24 = 4h)", size="1", color="gray"),
+                        spacing="1",
+                        width="100%",
+                    ),
+                    columns="2",
+                    spacing="4",
+                    width="100%",
+                ),
+                spacing="2",
+            ),
+
+            # Preprocessing
+            rx.vstack(
+                rx.heading("Preprocessing", size="3"),
+                rx.hstack(
+                    rx.switch(
+                        checked=TrainingWizardState.enable_preprocessing,
+                        on_change=TrainingWizardState.set_enable_preprocessing,
+                    ),
+                    rx.text("Enable data preprocessing", weight="bold"),
+                    spacing="2",
+                ),
+                rx.cond(
+                    TrainingWizardState.enable_preprocessing,
+                    rx.vstack(
+                        rx.text("✓ Interpolate missing values (linear)", size="2", color="green"),
+                        rx.text("✓ Remove outliers", size="2", color="green"),
+                        rx.hstack(
+                            rx.text("Outlier Threshold (Z-score):", size="2"),
+                            rx.input(type="number", 
+                                value=TrainingWizardState.outlier_threshold,
+                                on_change=TrainingWizardState.set_outlier_threshold,
+                                min_=1.0,
+                                max_=5.0,
+                                step=0.5,
+                                width="100px",
+                            ),
+                            spacing="2",
+                        ),
+                        padding_left="4",
+                        spacing="2",
+                    ),
+                ),
+                spacing="2",
+            ),
+
+            spacing="4",
+            width="100%",
+        ),
+
+        spacing="4",
+        width="100%",
+    )
+
+
+def step_5_training() -> rx.Component:
+    """Step 5: Execute Training"""
+    return rx.vstack(
+        rx.heading("Step 5: Ready to Train", size="5"),
+        rx.text("Review your configuration and start training", color="gray"),
+
+        rx.vstack(
+            # Configuration summary
+            rx.box(
+                rx.vstack(
+                    rx.heading("Configuration Summary", size="3"),
+
+                    rx.grid(
+                        rx.vstack(
+                            rx.text("Sensor", size="1", color="gray"),
+                            rx.text(TrainingWizardState.selected_tag, weight="bold"),
+                            spacing="1",
+                        ),
+                        rx.vstack(
+                            rx.text("Model", size="1", color="gray"),
+                            rx.text(TrainingWizardState.selected_model, weight="bold"),
+                            spacing="1",
+                        ),
+                        rx.vstack(
+                            rx.text("Feature Config", size="1", color="gray"),
+                            rx.text(TrainingWizardState.selected_feature_config, weight="bold"),
+                            spacing="1",
+                        ),
+                        rx.vstack(
+                            rx.text("Training Days", size="1", color="gray"),
+                            rx.text(TrainingWizardState.training_days, weight="bold"),
+                            spacing="1",
+                        ),
+                        columns="4",
+                        spacing="4",
+                    ),
+
+                    spacing="3",
+                ),
+                padding="4",
+                border_radius="md",
+                border=f"1px solid {rx.color('blue', 6)}",
+                bg=rx.color("blue", 2),
+            ),
+
+            # Training progress
+            rx.cond(
+                TrainingWizardState.is_training,
+                rx.box(
+                    rx.vstack(
+                        rx.heading("Training in Progress...", size="4"),
+                        rx.progress(value=TrainingWizardState.training_progress, max=100, width="100%"),
+                        rx.text(TrainingWizardState.training_status, size="2", color="gray"),
+                        spacing="3",
+                    ),
+                    padding="4",
+                    border_radius="md",
+                    border=f"1px solid {rx.color('green', 6)}",
+                    bg=rx.color("green", 2),
+                    width="100%",
+                ),
+            ),
+
+            # Start button
+            rx.cond(
+                ~TrainingWizardState.is_training & ~TrainingWizardState.training_complete,
+                rx.button(
+                    "Start Training",
+                    on_click=[
+                        TrainingWizardState.start_wizard_training,
+                        TrainingWizardState.monitor_training_completion
+                    ],
+                    size="4",
+                    color_scheme="green",
+                    width="100%",
+                ),
+            ),
+
+            spacing="4",
+            width="100%",
+        ),
+
+        spacing="4",
+        width="100%",
+    )
+
+
+def step_6_results() -> rx.Component:
+    """Step 6: View Results"""
+    return rx.vstack(
+        rx.heading("Step 6: Training Results", size="5"),
+        rx.text("Your model has been trained successfully!", color="gray"),
+
+        rx.vstack(
+            # Data Summary
+            rx.vstack(
+                rx.heading("Data Summary", size="3"),
+                rx.grid(
+                    rx.vstack(
+                        rx.heading(TrainingWizardState.result_metadata.get("tag_name", "N/A"), size="5"),
+                        rx.text("Sensor", size="1", color="gray"),
+                        align="center",
+                        spacing="1",
+                    ),
+                    rx.vstack(
+                        rx.heading(TrainingWizardState.raw_samples_display, size="5"),
+                        rx.text("Raw Samples", size="1", color="gray"),
+                        align="center",
+                        spacing="1",
+                    ),
+                    rx.vstack(
+                        rx.heading(TrainingWizardState.processed_samples_display, size="5"),
+                        rx.text("Processed", size="1", color="gray"),
+                        align="center",
+                        spacing="1",
+                    ),
+                    rx.vstack(
+                        rx.heading(TrainingWizardState.result_metadata.get("training_duration", "N/A"), size="5"),
+                        rx.text("Duration", size="1", color="gray"),
+                        align="center",
+                        spacing="1",
+                    ),
+                    columns="4",
+                    spacing="4",
+                ),
+                spacing="2",
+            ),
+
+            # Preprocessing (if applicable)
+            rx.cond(
+                TrainingWizardState.result_metadata.get("preprocessing_steps"),
+                rx.vstack(
+                    rx.heading("Preprocessing Applied", size="3"),
+                    rx.hstack(
+                        rx.badge(
+                            f"Outliers Removed: {TrainingWizardState.result_metadata.get('outliers_removed', 0)}",
+                            color_scheme="red",
+                            size="2"
+                        ),
+                        rx.badge(
+                            f"Gaps Filled: {TrainingWizardState.result_metadata.get('interpolated_gaps', 0)}",
+                            color_scheme="blue",
+                            size="2"
+                        ),
+                        spacing="2",
+                    ),
+                    spacing="2",
+                ),
+            ),
+
+            # Features
+            rx.vstack(
+                rx.heading("Feature Engineering", size="3"),
+                rx.grid(
+                    rx.vstack(
+                        rx.heading(TrainingWizardState.original_features_display, size="5", color="gray"),
+                        rx.text("Original", size="1", color="gray"),
+                        align="center",
+                        spacing="1",
+                    ),
+                    rx.vstack(
+                        rx.text("→", size="6"),
+                        align="center",
+                    ),
+                    rx.vstack(
+                        rx.heading(TrainingWizardState.final_features_display, size="5", color="green"),
+                        rx.text("Final Features", size="1", color="gray"),
+                        align="center",
+                        spacing="1",
+                    ),
+                    columns="3",
+                    spacing="2",
+                ),
+                spacing="2",
+            ),
+
+            # Model Diagnostics (AutoARIMA specific)
+            rx.cond(
+                TrainingWizardState.has_model_diagnostics,
+                rx.vstack(
+                    rx.heading("Model Diagnostics", size="3"),
+                    rx.vstack(
+                        # ARIMA Parameters
+                        rx.callout(
+                            rx.vstack(
+                                rx.text("ARIMA Parameters", weight="bold", size="2"),
+                                rx.text(
+                                    TrainingWizardState.arima_string,
+                                    size="3",
+                                    weight="bold",
+                                    color="blue",
+                                ),
+                                spacing="1",
+                            ),
+                            icon="brain",
+                            color_scheme="blue",
+                            size="2",
+                        ),
+
+                        # Model Selection Criteria
+                        rx.grid(
+                            rx.vstack(
+                                rx.text("AIC", size="1", color="gray"),
+                                rx.text(
+                                    TrainingWizardState.aic_value,
+                                    size="3",
+                                    weight="bold"
+                                ),
+                                align="center",
+                                spacing="1",
+                            ),
+                            rx.vstack(
+                                rx.text("BIC", size="1", color="gray"),
+                                rx.text(
+                                    TrainingWizardState.bic_value,
+                                    size="3",
+                                    weight="bold"
+                                ),
+                                align="center",
+                                spacing="1",
+                            ),
+                            rx.vstack(
+                                rx.text("AICc", size="1", color="gray"),
+                                rx.text(
+                                    TrainingWizardState.aicc_value,
+                                    size="3",
+                                    weight="bold"
+                                ),
+                                align="center",
+                                spacing="1",
+                            ),
+                            columns="3",
+                            spacing="4",
+                        ),
+
+                        # Residuals Statistics
+                        rx.callout(
+                            rx.grid(
+                                rx.vstack(
+                                    rx.text("Residuals Mean", size="1", color="gray"),
+                                    rx.text(
+                                        TrainingWizardState.residuals_mean_value,
+                                        size="2"
+                                    ),
+                                    align="center",
+                                    spacing="1",
+                                ),
+                                rx.vstack(
+                                    rx.text("Residuals Std", size="1", color="gray"),
+                                    rx.text(
+                                        TrainingWizardState.residuals_std_value,
+                                        size="2"
+                                    ),
+                                    align="center",
+                                    spacing="1",
+                                ),
+                                columns="2",
+                                spacing="4",
+                            ),
+                            icon="activity",
+                            color_scheme="gray",
+                            size="1",
+                        ),
+
+                        spacing="3",
+                    ),
+                    spacing="2",
+                ),
+            ),
+
+
+            # Evaluation Metrics (Walk-Forward Validation)
+            rx.cond(
+                TrainingWizardState.has_evaluation_metrics,
+                rx.vstack(
+                    rx.heading("Evaluation Metrics (Walk-Forward Validation)", size="3"),
+                    rx.grid(
+                        # MAE
+                        rx.vstack(
+                            rx.text("MAE", size="1", color="gray"),
+                            rx.text(
+                                rx.cond(
+                                    TrainingWizardState.has_evaluation_metrics,
+                                    f"{TrainingWizardState.evaluation_metrics.get('mae', 0):.2f}",
+                                    "N/A"
+                                ),
+                                size="4",
+                                weight="bold",
+                                color="blue"
+                            ),
+                            rx.text("Mean Absolute Error", size="1", color="gray"),
+                            align="center",
+                            spacing="1",
+                        ),
+                        # MAPE
+                        rx.vstack(
+                            rx.text("MAPE", size="1", color="gray"),
+                            rx.text(
+                                TrainingWizardState.mape_value,
+                                size="4",
+                                weight="bold",
+                                color="blue"
+                            ),
+                            rx.text("Mean Absolute % Error", size="1", color="gray"),
+                            align="center",
+                            spacing="1",
+                        ),
+                        # RMSE
+                        rx.vstack(
+                            rx.text("RMSE", size="1", color="gray"),
+                            rx.text(
+                                TrainingWizardState.rmse_value,
+                                size="4",
+                                weight="bold",
+                                color="purple"
+                            ),
+                            rx.text("Root Mean Squared Error", size="1", color="gray"),
+                            align="center",
+                            spacing="1",
+                        ),
+                        columns="3",
+                        spacing="4",
+                    ),
+                    rx.grid(
+                        # SMAPE
+                        rx.vstack(
+                            rx.text("SMAPE", size="1", color="gray"),
+                            rx.text(
+                                TrainingWizardState.smape_value,
+                                size="3",
+                                weight="bold",
+                                color="green"
+                            ),
+                            rx.text("Symmetric MAPE", size="1", color="gray"),
+                            align="center",
+                            spacing="1",
+                        ),
+                        # MASE
+                        rx.vstack(
+                            rx.text("MASE", size="1", color="gray"),
+                            rx.text(
+                                TrainingWizardState.mase_value,
+                                size="3",
+                                weight="bold",
+                                color="orange"
+                            ),
+                            rx.text("Mean Absolute Scaled Error", size="1", color="gray"),
+                            align="center",
+                            spacing="1",
+                        ),
+                        # Validation Info
+                        rx.vstack(
+                            rx.text("Validation", size="1", color="gray"),
+                            rx.text(
+                                TrainingWizardState.n_windows_display,
+                                size="2",
+                                weight="bold"
+                            ),
+                            rx.text(
+                                TrainingWizardState.n_predictions_display,
+                                size="1",
+                                color="gray"
+                            ),
+                            align="center",
+                            spacing="1",
+                        ),
+                        columns="3",
+                        spacing="4",
+                    ),
+                    spacing="3",
+                ),
+            ),
+
+            # Residuals Diagnostics
+            rx.cond(
+                TrainingWizardState.has_residuals_stats,
+                rx.vstack(
+                    rx.heading("Residuals Diagnostics", size="3"),
+
+                    # Statistics Grid
+                    rx.grid(
+                        rx.vstack(
+                            rx.text("Mean", size="1", color="gray"),
+                            rx.text(
+                                TrainingWizardState.residuals_mean_stat,
+                                size="3",
+                                weight="bold"
+                            ),
+                            align="center",
+                            spacing="1",
+                        ),
+                        rx.vstack(
+                            rx.text("Std Dev", size="1", color="gray"),
+                            rx.text(
+                                TrainingWizardState.residuals_std_stat,
+                                size="3",
+                                weight="bold"
+                            ),
+                            align="center",
+                            spacing="1",
+                        ),
+                        rx.vstack(
+                            rx.text("Skewness", size="1", color="gray"),
+                            rx.text(
+                                TrainingWizardState.residuals_skewness,
+                                size="3",
+                                weight="bold",
+                                color="purple"
+                            ),
+                            align="center",
+                            spacing="1",
+                        ),
+                        rx.vstack(
+                            rx.text("Kurtosis", size="1", color="gray"),
+                            rx.text(
+                                TrainingWizardState.residuals_kurtosis,
+                                size="3",
+                                weight="bold",
+                                color="orange"
+                            ),
+                            align="center",
+                            spacing="1",
+                        ),
+                        columns="4",
+                        spacing="4",
+                    ),
+
+                    # ACF and PACF Plots (2-column grid)
+                    rx.cond(
+                        TrainingWizardState.acf_chart_data,
+                        rx.grid(
+                            # ACF Plot
+                            rx.vstack(
+                                rx.heading("ACF (Autocorrelation Function)", size="2"),
+                                rx.recharts.bar_chart(
+                                    rx.recharts.bar(
+                                        data_key="acf",
+                                        fill=rx.color("blue", 7),
+                                    ),
+                                    rx.recharts.x_axis(data_key="lag"),
+                                    rx.recharts.y_axis(),
+                                    rx.recharts.cartesian_grid(stroke_dasharray="3 3"),
+                                    rx.recharts.reference_line(
+                                        y=0,
+                                        stroke=rx.color("gray", 8),
+                                        stroke_width=1,
+                                    ),
+                                    data=TrainingWizardState.acf_chart_data,
+                                    width="100%",
+                                    height=200,
+                                ),
+                                spacing="2",
+                            ),
+                            # PACF Plot
+                            rx.vstack(
+                                rx.heading("PACF (Partial Autocorrelation)", size="2"),
+                                rx.recharts.bar_chart(
+                                    rx.recharts.bar(
+                                        data_key="pacf",
+                                        fill=rx.color("purple", 7),
+                                    ),
+                                    rx.recharts.x_axis(data_key="lag"),
+                                    rx.recharts.y_axis(),
+                                    rx.recharts.cartesian_grid(stroke_dasharray="3 3"),
+                                    rx.recharts.reference_line(
+                                        y=0,
+                                        stroke=rx.color("gray", 8),
+                                        stroke_width=1,
+                                    ),
+                                    data=TrainingWizardState.pacf_chart_data,
+                                    width="100%",
+                                    height=200,
+                                ),
+                                spacing="2",
+                            ),
+                            columns="2",
+                            spacing="4",
+                        ),
+                    ),
+
+                    # Q-Q Plot and Histogram (2-column grid)
+                    rx.grid(
+                        # Q-Q Plot
+                        rx.cond(
+                            TrainingWizardState.qq_chart_data,
+                            rx.vstack(
+                                rx.heading("Q-Q Plot (Normality Test)", size="2"),
+                                rx.recharts.scatter_chart(
+                                    rx.recharts.scatter(
+                                        data_key="sample",
+                                        fill=rx.color("green", 7),
+                                    ),
+                                    rx.recharts.x_axis(
+                                        data_key="theoretical",
+                                        name="Theoretical Quantiles"
+                                    ),
+                                    rx.recharts.y_axis(name="Sample Quantiles"),
+                                    rx.recharts.cartesian_grid(stroke_dasharray="3 3"),
+                                    rx.recharts.reference_line(
+                                        stroke=rx.color("red", 7),
+                                        stroke_width=2,
+                                        segment=[{"x": -3, "y": -3}, {"x": 3, "y": 3}],
+                                    ),
+                                    data=TrainingWizardState.qq_chart_data,
+                                    width="100%",
+                                    height=200,
+                                ),
+                                rx.text("Points should follow the red line for normal distribution", size="1", color="gray"),
+                                spacing="2",
+                            ),
+                        ),
+                        # Histogram
+                        rx.cond(
+                            TrainingWizardState.histogram_chart_data,
+                            rx.vstack(
+                                rx.heading("Residuals Histogram", size="2"),
+                                rx.recharts.bar_chart(
+                                    rx.recharts.bar(
+                                        data_key="count",
+                                        fill=rx.color("orange", 7),
+                                    ),
+                                    rx.recharts.x_axis(data_key="bin", name="Residual Value"),
+                                    rx.recharts.y_axis(name="Frequency"),
+                                    rx.recharts.cartesian_grid(stroke_dasharray="3 3"),
+                                    data=TrainingWizardState.histogram_chart_data,
+                                    width="100%",
+                                    height=200,
+                                ),
+                                rx.text("Should approximate a bell curve for normal distribution", size="1", color="gray"),
+                                spacing="2",
+                            ),
+                        ),
+                        columns="2",
+                        spacing="4",
+                    ),
+
+                    spacing="4",
+                ),
+            ),
+
+            # Model Validation Chart (Actual vs Predicted)
+            rx.cond(
+                TrainingWizardState.validation_chart_data,
+                rx.vstack(
+                    rx.heading("Model Validation: Actual vs Predicted", size="3"),
+                    rx.callout(
+                        rx.vstack(
+                            rx.text(
+                                "Walk-forward validation results",
+                                size="2",
+                                weight="bold"
+                            ),
+                            rx.text(
+                                "Comparing actual values with model predictions to calculate MAPE",
+                                size="1",
+                                color="gray"
+                            ),
+                            spacing="1",
+                        ),
+                        icon="target",
+                        color_scheme="blue",
+                        size="2",
+                    ),
+                    # Validation Chart with Actual and Predicted Lines
+                    rx.recharts.line_chart(
+                        rx.recharts.line(
+                            data_key="actual",
+                            stroke=rx.color("green", 9),
+                            stroke_width=2,
+                            name="Actual Values",
+                            dot={"r": 3},
+                        ),
+                        rx.recharts.line(
+                            data_key="predicted",
+                            stroke=rx.color("blue", 9),
+                            stroke_width=2,
+                            name="Predicted Values",
+                            stroke_dasharray="5 5",
+                            dot={"r": 3},
+                        ),
+                        rx.recharts.x_axis(data_key="timestamp"),
+                        rx.recharts.y_axis(),
+                        rx.recharts.cartesian_grid(stroke_dasharray="3 3"),
+                        rx.recharts.legend(),
+                        rx.recharts.tooltip(),
+                        data=TrainingWizardState.validation_chart_data,
+                        width="100%",
+                        height=300,
+                    ),
+                    spacing="3",
+                ),
+            ),
+            
+            # Comparison Table (Actual vs Predicted)
+            rx.cond(
+                TrainingWizardState.validation_chart_data,
+                rx.vstack(
+                    rx.heading("Detailed Comparison (Actual vs Predicted)", size="3"),
+                    rx.box(
+                        rx.table.root(
+                            rx.table.header(
+                                rx.table.row(
+                                    rx.table.column_header_cell("Timestamp"),
+                                    rx.table.column_header_cell("Actual Value"),
+                                    rx.table.column_header_cell("Predicted Value"),
+                                    rx.table.column_header_cell("Error"),
+                                    rx.table.column_header_cell("Error %"),
+                                ),
+                            ),
+                            rx.table.body(
+                                rx.foreach(
+                                    TrainingWizardState.validation_table_data,
+                                    lambda row: rx.table.row(
+                                        rx.table.cell(row["timestamp"]),
+                                        rx.table.cell(row["actual"]),
+                                        rx.table.cell(row["predicted"]),
+                                        rx.table.cell(row["error"]),
+                                        rx.table.cell(row["error_pct"]),
+                                    ),
+                                ),
+                            ),
+                            size="2",
+                            variant="surface",
+                        ),
+                        max_height="400px",
+                        overflow_y="auto",
+                    ),
+                    spacing="3",
+                ),
+            ),
+            
+            # Forecast with Confidence Intervals (Combined: Historical + Future)
+            rx.cond(
+                TrainingWizardState.forecast_with_intervals,
+                rx.vstack(
+                    rx.heading("Forecast with Historical Context", size="3"),
+                    rx.callout(
+                        rx.vstack(
+                            rx.text(
+                                "Historical actual data + 24-hour forecast with confidence intervals",
+                                size="2",
+                                weight="bold"
+                            ),
+                            rx.text(
+                                "Green line = Past actual values | Blue line = Future forecast | Shaded area = Confidence intervals",
+                                size="1",
+                                color="gray"
+                            ),
+                            spacing="1",
+                        ),
+                        icon="trending-up",
+                        color_scheme="green",
+                        size="2",
+                    ),
+                    # MLForecast-style Chart with Plotly
+                    forecast_chart_component(),                    rx.recharts.composed_chart(
+                        # 95% Confidence interval (wider, lighter blue)
+                        rx.recharts.area(
+                            data_key="lower_95",
+                            stroke="transparent",
+                            fill=rx.color("blue", 3),
+                            fill_opacity=0.15,
+                            name="",  # Hide from legend
+                        ),
+                        rx.recharts.area(
+                            data_key="upper_95",
+                            stroke="transparent",
+                            fill=rx.color("blue", 3),
+                            fill_opacity=0.15,
+                            name="",  # Hide from legend
+                        ),
+                        # 80% Confidence interval (narrower, darker blue)
+                        rx.recharts.area(
+                            data_key="lower_80",
+                            stroke="transparent",
+                            fill=rx.color("blue", 5),
+                            fill_opacity=0.25,
+                            name="",  # Hide from legend
+                        ),
+                        rx.recharts.area(
+                            data_key="upper_80",
+                            stroke="transparent",
+                            fill=rx.color("blue", 5),
+                            fill_opacity=0.25,
+                            name="",  # Hide from legend
+                        ),
+                        # Boundary lines for 95% interval
+                        rx.recharts.line(
+                            data_key="upper_95",
+                            stroke=rx.color("blue", 4),
+                            stroke_width=1,
+                            stroke_dasharray="2 2",
+                            dot=False,
+                            name="95% CI",
+                        ),
+                        rx.recharts.line(
+                            data_key="lower_95",
+                            stroke=rx.color("blue", 4),
+                            stroke_width=1,
+                            stroke_dasharray="2 2",
+                            dot=False,
+                            name="",
+                        ),
+                        # Boundary lines for 80% interval
+                        rx.recharts.line(
+                            data_key="upper_80",
+                            stroke=rx.color("blue", 7),
+                            stroke_width=1,
+                            stroke_dasharray="3 3",
+                            dot=False,
+                            name="80% CI",
+                        ),
+                        rx.recharts.line(
+                            data_key="lower_80",
+                            stroke=rx.color("blue", 7),
+                            stroke_width=1,
+                            stroke_dasharray="3 3",
+                            dot=False,
+                            name="",
+                        ),
+                        # Historical actual values (solid green line)
+                        rx.recharts.line(
+                            data_key="actual",
+                            stroke=rx.color("green", 9),
+                            stroke_width=2.5,
+                            dot=False,
+                            name="Actual (Past)",
+                        ),
+                        # Future forecast (dashed blue line - thicker)
+                        rx.recharts.line(
+                            data_key="forecast",
+                            stroke=rx.color("blue", 9),
+                            stroke_width=3,
+                            stroke_dasharray="5 5",
+                            dot=False,
+                            name="Forecast",
+                        ),
+                        rx.recharts.x_axis(data_key="timestamp"),
+                        rx.recharts.y_axis(),
+                        rx.recharts.cartesian_grid(stroke_dasharray="3 3", opacity=0.3),
+                        rx.recharts.legend(),
+                        rx.recharts.tooltip(),
+                        data=TrainingWizardState.combined_forecast_chart_data,
+                        width="100%",
+                        height=400,
+                    ),
+                    spacing="3",
+                ),
+            ),
+            # Model Performance
+            rx.vstack(
+                rx.heading("Model Performance", size="3"),
+                rx.hstack(
+                    rx.badge(
+                        f"Best Model: {TrainingWizardState.result_metadata.get('best_model', 'N/A')}",
+                        color_scheme="green",
+                        size="3"
+                    ),
+                    rx.badge(
+                        f"MAPE: {TrainingWizardState.result_metadata.get('best_mape', 'N/A')}",
+                        color_scheme="blue",
+                        size="3"
+                    ),
+                    spacing="3",
+                    justify="center",
+                ),
+                align="center",
+                spacing="2",
+            ),
+
+            # Actions
+            rx.hstack(
+                rx.button(
+                    "View Predictions",
+                    on_click=TrainingWizardState.view_predictions,
+                    size="4",
+                    color_scheme="blue",
+                ),
+                rx.button(
+                    "Save Model",
+                    on_click=TrainingWizardState.save_model,
+                    size="4",
+                    color_scheme="green",
+                ),
+                rx.button(
+                    "Train Another Model",
+                    on_click=TrainingWizardState.reset_wizard,
+                    size="4",
+                    color_scheme="gray",
+                ),
+                spacing="4",
+                justify="center",
+                width="100%",
+            ),
+
+            spacing="5",
+            width="100%",
+        ),
+
+        spacing="4",
+        width="100%",
+    )
+
+
+def wizard_navigation() -> rx.Component:
+    """Navigation buttons"""
+    return rx.hstack(
+        # Previous button
+        rx.cond(
+            TrainingWizardState.wizard_step > 1,
+            rx.button(
+                "← Previous",
+                on_click=TrainingWizardState.previous_step,
+                size="3",
+                variant="soft",
+            ),
+        ),
+
+        rx.spacer(),
+
+        # Next button
+        rx.cond(
+            TrainingWizardState.wizard_step < 6,
+            rx.button(
+                "Next →",
+                on_click=TrainingWizardState.next_step,
+                size="3",
+                color_scheme="blue",
+                disabled=~TrainingWizardState.can_proceed,
+            ),
+        ),
+
+        width="100%",
+    )
+
+
+def error_display() -> rx.Component:
+    """Error display"""
+    return rx.cond(
+        TrainingWizardState.error_message,
+        rx.callout(
+            TrainingWizardState.error_message,
+            color_scheme="red",
+            icon="triangle-alert",
+        ),
+    )
+
+
+@rx.page("/training-wizard", on_load=TrainingWizardState.initialize_wizard)
+def training_wizard_page() -> rx.Component:
+    """Training Wizard Page - Sequential Workflow"""
+    return shell(
+        rx.toast.provider(
+            rx.vstack(
+                # Header with progress
+                wizard_header(),
+
+                # Error display
+                error_display(),
+
+            # Main content area - show current step
+            rx.box(
+                rx.cond(
+                    TrainingWizardState.wizard_step == 1,
+                    step_1_sensor(),
+                    rx.cond(
+                        TrainingWizardState.wizard_step == 2,
+                        step_2_model(),
+                        rx.cond(
+                            TrainingWizardState.wizard_step == 3,
+                            step_3_features(),
+                            rx.cond(
+                                TrainingWizardState.wizard_step == 4,
+                                step_4_params(),
+                                rx.cond(
+                                    TrainingWizardState.wizard_step == 5,
+                                    step_5_training(),
+                                    step_6_results(),
+                                ),
+                            ),
+                        ),
+                    ),
+                ),
+                min_height="500px",
+                width="100%",
+            ),
+
+            # Navigation
+            wizard_navigation(),
+
+            spacing="6",
+            width="100%",
+            max_width="1000px",
+            padding="8",
+            ),
+        ),
+        active_route="/training-wizard"
+    )

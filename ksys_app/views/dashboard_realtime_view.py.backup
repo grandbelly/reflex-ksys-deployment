@@ -1,0 +1,697 @@
+"""Dashboard Real-time View - UI Components following stock market pattern"""
+import reflex as rx
+import reflex_chakra as rc
+from typing import Dict, List
+from ..states.dashboard_realtime import DashboardRealtimeState
+from ..components.dashboard import (
+    dashboard_kpi_tiles,
+    dashboard_kpi_tiles_compact,
+    device_status_distribution_bar,
+    status_badges_row
+)
+
+
+def realtime_header() -> rx.Component:
+    """Real-time monitoring header with timestamp - New design 2025-10-02"""
+    return rx.box(
+        rx.hstack(
+            rx.text(
+                "실시간 모니터링",
+                size="2",
+                weight="medium",
+                color="gray"
+            ),
+            rx.icon("circle", size=10, color="green", style={"animation": "pulse 2s infinite"}),
+            rx.text(
+                f"Last update: {DashboardRealtimeState.last_update}",
+                size="2",
+                color="gray",
+                style={"font-family": "monospace"}
+            ),
+            spacing="2",
+            align="center"
+        ),
+        padding="2",
+        border_bottom="1px solid #e5e7eb"
+    )
+
+
+def status_bar() -> rx.Component:
+    """Status bar showing system health"""
+
+    return rx.box(
+        rx.hstack(
+            rx.badge(
+                rx.hstack(
+                    rx.icon("circle", size=10, color="green.500", style={"animation": "pulse 2s infinite"}),
+                    rx.text("LIVE", size="1", weight="bold"),
+                    spacing="1"
+                ),
+                variant="soft",
+                color_scheme="green",
+                size="2",
+                style={"border-radius": "9999px"}
+            ),
+            rx.text(
+                f"Last update: {DashboardRealtimeState.last_update}",
+                size="1",
+                class_name="text-slate-400",
+                style={"font-family": "monospace"}
+            ),
+            rx.spacer(),
+            rx.hstack(
+                rx.text("정상:", size="2", weight="medium", class_name="text-green-400"),
+                rx.text(DashboardRealtimeState.normal_count, size="2", weight="bold", class_name="text-green-300"),
+                rx.text("|", class_name="text-slate-600"),
+                rx.text("주의:", size="2", weight="medium", class_name="text-yellow-400"),
+                rx.text(DashboardRealtimeState.warning_count, size="2", weight="bold", class_name="text-yellow-300"),
+                rx.text("|", class_name="text-slate-600"),
+                rx.text("위험:", size="2", weight="medium", class_name="text-red-400"),
+                rx.text(DashboardRealtimeState.critical_count, size="2", weight="bold", class_name="text-red-300"),
+                spacing="2"
+            ),
+            width="100%",
+            align="center"
+        ),
+        padding="3",
+        background="linear-gradient(90deg, var(--gray-2), var(--gray-1))",
+        border_radius="lg",
+        border="1px solid",
+        class_name="bg-slate-800 rounded-lg border border-slate-700"
+    )
+
+
+def sensor_gauge(sensor_data: Dict) -> rx.Component:
+    """Circular gauge component - using Chakra circular progress"""
+    return rc.circular_progress(
+        rc.circular_progress_label(
+            rx.vstack(
+                rx.text(
+                    f"{sensor_data['value']:.2f}",
+                    font_size="lg",
+                    font_weight="bold", class_name="text-white"
+                ),
+                rx.cond(
+                    sensor_data["unit"] != "",
+                    rx.text(
+                        sensor_data["unit"],
+                        font_size="xs",
+                        class_name="text-slate-400"
+                    ),
+                    rx.box()
+                ),
+                spacing="0",
+                align_items="center"
+            )
+        ),
+        value=sensor_data["gauge_percent"],
+        size="90px",
+        thickness="8px",
+        color=rx.cond(
+            sensor_data["status"] == 0,
+            "green.400",
+            rx.cond(
+                sensor_data["status"] == 1,
+                "yellow.400",
+                "red.400"
+            )
+        ),
+        track_color="slate.700"
+    )
+
+
+def mini_chart(
+    data: List[Dict],
+    min_val: float = None,
+    max_val: float = None,
+    warning_low: float = None,
+    warning_high: float = None
+) -> rx.Component:
+    """Enhanced mini sparkline chart with QC and warning limit lines
+
+    Design improvements:
+    1. Very low area opacity (15%) to avoid obscuring reference lines
+    2. Critical limits (red, thick lines) with labels
+    3. Warning thresholds (orange, thin dashed lines)
+    4. Safe zone highlighting (green background)
+    5. Uses rx.cond for conditional rendering
+    """
+    chart_components = []
+
+    # Safe zone reference area (between min and max) - always show if min/max provided
+    chart_components.append(
+        rx.cond(
+            (min_val != None) & (max_val != None),
+            rx.recharts.reference_area(
+                y1=min_val,
+                y2=max_val,
+                fill="#10b981",  # green-500
+                fill_opacity=0.08,
+                stroke="none"
+            ),
+            rx.fragment()
+        )
+    )
+
+    # Critical Min limit reference line
+    chart_components.append(
+        rx.cond(
+            (min_val != None) & (max_val != None),
+            rx.recharts.reference_line(
+                y=min_val,
+                stroke="#dc2626",  # red-600 (critical)
+                stroke_dasharray="5 3",
+                stroke_width=2.5,
+                label="Min",
+                if_overflow="extendDomain"
+            ),
+            rx.fragment()
+        )
+    )
+
+    # Critical Max limit reference line
+    chart_components.append(
+        rx.cond(
+            (min_val != None) & (max_val != None),
+            rx.recharts.reference_line(
+                y=max_val,
+                stroke="#dc2626",  # red-600 (critical)
+                stroke_dasharray="5 3",
+                stroke_width=2.5,
+                label="Max",
+                if_overflow="extendDomain"
+            ),
+            rx.fragment()
+        )
+    )
+
+    # Warning lower threshold (optional)
+    chart_components.append(
+        rx.cond(
+            warning_low != None,
+            rx.recharts.reference_line(
+                y=warning_low,
+                stroke="#f59e0b",  # orange-500 (warning)
+                stroke_dasharray="2 2",
+                stroke_width=1.5,
+                stroke_opacity=0.6
+            ),
+            rx.fragment()
+        )
+    )
+
+    # Warning upper threshold (optional)
+    chart_components.append(
+        rx.cond(
+            warning_high != None,
+            rx.recharts.reference_line(
+                y=warning_high,
+                stroke="#f59e0b",  # orange-500 (warning)
+                stroke_dasharray="2 2",
+                stroke_width=1.5,
+                stroke_opacity=0.6
+            ),
+            rx.fragment()
+        )
+    )
+
+    # Area with VERY LOW opacity - rendered AFTER reference lines
+    chart_components.append(
+        rx.recharts.area(
+            data_key="value",
+            stroke="currentColor",
+            fill="currentColor",
+            fill_opacity=0.15,  # Very low opacity to show reference lines clearly
+            stroke_width=2.5,
+            dot=False,
+            type_="monotone",
+            animation_duration=300
+        )
+    )
+
+    # Axes and interactions
+    chart_components.extend([
+        rx.recharts.x_axis(data_key="timestamp", hide=True),
+        rx.recharts.y_axis(
+            hide=True,
+            domain=["dataMin - 10", "dataMax + 10"]
+        ),
+        rx.recharts.cartesian_grid(
+            stroke_dasharray="3 3",
+            stroke_opacity=0.15,
+            vertical=False
+        ),
+        rx.recharts.tooltip(
+            content_style={
+                "backgroundColor": "rgba(255, 255, 255, 0.98)",
+                "border": "1px solid #e5e7eb",
+                "borderRadius": "4px",
+                "padding": "6px 8px",
+                "boxShadow": "0 4px 12px rgba(0,0,0,0.15)",
+                "fontSize": "10px"
+            },
+            label_style={
+                "color": "#111827",
+                "fontWeight": "600",
+                "fontSize": "9px",
+                "marginBottom": "2px"
+            },
+            item_style={
+                "color": "#6b7280",
+                "fontSize": "9px"
+            },
+            cursor={
+                "stroke": "currentColor",
+                "stroke_width": 1,
+                "stroke_opacity": 0.3,
+                "stroke_dasharray": "3 3"
+            }
+        )
+    ])
+
+    return rx.recharts.area_chart(
+        *chart_components,
+        data=data,
+        height=60,
+        margin={"top": 3, "right": 3, "bottom": 3, "left": 3},
+        style={"cursor": "crosshair"}
+    )
+
+
+def sensor_tile(sensor_data: Dict) -> rx.Component:
+    """Individual sensor tile - Target design: small gauge + large value + sparkline chart
+    Layout: [Small Gauge 30%] [Large Value 225] [Sparkline →]
+    """
+    return rx.card(
+        rx.vstack(
+            # Header: Sensor ID + Description + Edit Button + Status Badge
+            rx.hstack(
+                rx.vstack(
+                    rx.text(
+                        sensor_data["tag_name"],
+                        size="2",
+                        weight="medium",
+                        color="#6b7280"  # gray-500
+                    ),
+                    rx.cond(
+                        sensor_data.get("description", "") != "",
+                        rx.text(
+                            sensor_data.get("description", ""),
+                            size="1",
+                            color="#9ca3af",  # gray-400
+                            style={"white_space": "nowrap", "overflow": "hidden", "text_overflow": "ellipsis", "max_width": "150px"}
+                        ),
+                        rx.box()  # Empty box when no description
+                    ),
+                    spacing="0",
+                    align_items="start"
+                ),
+                rx.icon_button(
+                    rx.icon("settings", size=14),
+                    size="1",
+                    variant="ghost",
+                    color_scheme="gray",
+                    on_click=lambda: DashboardRealtimeState.open_edit_dialog(
+                        sensor_data["tag_name"],
+                        sensor_data.get("description", ""),
+                        sensor_data.get("unit", ""),
+                        sensor_data["min_val"],
+                        sensor_data["max_val"],
+                        sensor_data["warning_low"],
+                        sensor_data["warning_high"],
+                        sensor_data["critical_low"],
+                        sensor_data["critical_high"]
+                    ),
+                    cursor="pointer"
+                ),
+                rx.spacer(),
+                rx.badge(
+                    rx.cond(
+                        sensor_data["status"] == 0,
+                        "Normal",
+                        rx.cond(
+                            sensor_data["status"] == 1,
+                            "Warning",
+                            "Critical"
+                        )
+                    ),
+                    color_scheme=rx.cond(
+                        sensor_data["status"] == 0,
+                        "green",
+                        rx.cond(
+                            sensor_data["status"] == 1,
+                            "amber",
+                            "red"
+                        )
+                    ),
+                    variant="soft",
+                    size="1"
+                ),
+                width="100%",
+                align="center"
+            ),
+
+            # Row 1: Small Gauge (Left) + Large Value (Right)
+            rx.hstack(
+                # Left: Small circular gauge with percentage
+                rx.box(
+                    rc.circular_progress(
+                        rc.circular_progress_label(
+                            rx.text(
+                                f"{sensor_data['gauge_percent']:.0f}%",
+                                size="1",
+                                weight="bold",
+                                color=rx.cond(
+                                    sensor_data["status"] == 0,
+                                    "#10b981",  # green
+                                    rx.cond(
+                                        sensor_data["status"] == 1,
+                                        "#f59e0b",  # amber
+                                        "#ef4444"   # red
+                                    )
+                                )
+                            )
+                        ),
+                        value=sensor_data["gauge_percent"],
+                        size="50px",
+                        thickness="6px",
+                        color=rx.cond(
+                            sensor_data["status"] == 0,
+                            "green.500",
+                            rx.cond(
+                                sensor_data["status"] == 1,
+                                "yellow.500",
+                                "red.500"
+                            )
+                        ),
+                        track_color="gray.200"
+                    ),
+                    flex_shrink="0",
+                    display="flex",
+                    align_items="center"
+                ),
+
+                # Right: Large value with unit and range subtitle
+                rx.vstack(
+                    rx.hstack(
+                        rx.text(
+                            f"{sensor_data['value']:.2f}",
+                            size="7",
+                            weight="bold",
+                            color="#111827"  # gray-900
+                        ),
+                        rx.cond(
+                            sensor_data.get("unit", "") != "",
+                            rx.text(
+                                sensor_data.get("unit", ""),
+                                size="3",
+                                color="#6b7280",  # gray-500
+                                style={"margin_left": "4px"}
+                            ),
+                            rx.box()
+                        ),
+                        spacing="1",
+                        align="center"
+                    ),
+                    rx.text(
+                        f"{sensor_data['min_val']:.2f} ~ {sensor_data['max_val']:.2f}",
+                        size="1",
+                        color="#6b7280"  # gray-500
+                    ),
+                    spacing="0",
+                    align="start",
+                    justify="center",
+                    flex_grow="1"
+                ),
+
+                spacing="3",
+                align="center",
+                width="100%"
+            ),
+
+            # Row 2: Mini sparkline chart (full width)
+            rx.box(
+                mini_chart(
+                    sensor_data["chart_points"],
+                    min_val=sensor_data.get("min_val"),
+                    max_val=sensor_data.get("max_val"),
+                    warning_low=sensor_data.get("warning_low"),
+                    warning_high=sensor_data.get("warning_high")
+                ),
+                width="100%",
+                height="50px",
+                color=sensor_data["chart_color"]
+            ),
+
+            # Footer: Timestamp
+            rx.text(
+                sensor_data["timestamp"],
+                size="1",
+                color="#9ca3af",  # gray-400
+                text_align="center",
+                width="100%"
+            ),
+
+            spacing="2",
+            width="100%"
+        ),
+        padding="3",
+        width="100%",
+        class_name="bg-white border border-gray-200 hover:border-blue-400 transition-all duration-200 shadow-sm"
+    )
+
+
+def alarm_monitoring_table() -> rx.Component:
+    """Real-time alarm monitoring table"""
+    def table_row(sensor: Dict) -> rx.Component:
+        return rx.table.row(
+            rx.table.cell(rx.text(sensor["tag_name"], size="2", weight="medium", color="#111827"), width="80px"),
+            rx.table.cell(rx.badge(rx.cond(sensor["status"] == 0, "NORMAL", rx.cond(sensor["status"] == 1, "WARNING", "CRITICAL")),
+                color_scheme=rx.cond(sensor["status"] == 0, "green", rx.cond(sensor["status"] == 1, "amber", "red")), variant="soft", size="1"), width="100px"),
+            rx.table.cell(rx.text(sensor["value_str"], size="2", weight="medium", color="#111827"), width="100px"),
+            rx.table.cell(rx.text(sensor["range_str"], size="2", color="#6b7280"), width="140px"),
+            rx.table.cell(rx.text(sensor["deviation_str"], size="2", color=rx.cond(sensor["status"] == 2, "#ef4444", rx.cond(sensor["status"] == 1, "#f59e0b", "#6b7280")), weight="medium"), width="100px"),
+            rx.table.cell(rx.hstack(rx.box(width=sensor["risk_pct_str"], height="16px", bg=rx.cond(sensor["status"] == 2, "#ef4444", rx.cond(sensor["status"] == 1, "#f59e0b", "#10b981")), border_radius="2px"),
+                rx.text(sensor["risk_pct_str"], size="2", weight="medium", color="#111827"), spacing="2", align="center"), width="150px"),
+            rx.table.cell(rx.text(sensor["timestamp"], size="2", color="#6b7280", weight="regular"), width="140px"),
+            rx.table.cell(rx.button(rx.cond(sensor["status"] == 0, "확인", "조치"), size="1", variant="soft", color_scheme=rx.cond(sensor["status"] == 0, "green", "red")), width="100px"),
+            bg=rx.cond(sensor["status"] == 2, "rgba(239, 68, 68, 0.1)", rx.cond(sensor["status"] == 1, "rgba(245, 158, 11, 0.1)", "white")),
+            border_left=rx.cond(sensor["status"] == 2, "4px solid #ef4444", rx.cond(sensor["status"] == 1, "4px solid #f59e0b", "4px solid transparent")),
+            _hover={"bg": "rgba(59, 130, 246, 0.05)", "cursor": "pointer"}
+        )
+    return rx.vstack(
+        rx.heading("실시간 알람 모니터링", size="5", color="#111827"),
+        rx.table.root(
+            rx.table.header(rx.table.row(
+                rx.table.column_header_cell("ID", width="80px", style={"backgroundColor": "#f9fafb !important", "color": "#374151 !important"}),
+                rx.table.column_header_cell("상태", width="100px", style={"backgroundColor": "#f9fafb !important", "color": "#374151 !important"}),
+                rx.table.column_header_cell("현재값", width="100px", style={"backgroundColor": "#f9fafb !important", "color": "#374151 !important"}),
+                rx.table.column_header_cell("범위", width="140px", style={"backgroundColor": "#f9fafb !important", "color": "#374151 !important"}),
+                rx.table.column_header_cell("초과량", width="100px", style={"backgroundColor": "#f9fafb !important", "color": "#374151 !important"}),
+                rx.table.column_header_cell("위험도", width="150px", style={"backgroundColor": "#f9fafb !important", "color": "#374151 !important"}),
+                rx.table.column_header_cell("판정시간", width="140px", style={"backgroundColor": "#f9fafb !important", "color": "#374151 !important"}),
+                rx.table.column_header_cell("액션", width="100px", style={"backgroundColor": "#f9fafb !important", "color": "#374151 !important"}),
+                style={"backgroundColor": "#f9fafb !important"})),
+            rx.table.body(rx.foreach(DashboardRealtimeState.sensors, table_row)),
+            width="100%", style={"backgroundColor": "white"}),
+        width="100%", spacing="3", align="start")
+
+
+
+def sensor_edit_dialog() -> rx.Component:
+    """Sensor information edit dialog"""
+    return rx.dialog.root(
+        rx.dialog.content(
+            rx.dialog.title(
+                rx.hstack(
+                    rx.icon("settings", size=20),
+                    rx.text("센서 정보 편집"),
+                    spacing="2",
+                    align="center"
+                )
+            ),
+            rx.dialog.description(
+                f"센서 {DashboardRealtimeState.edit_tag_name}의 정보를 수정합니다.",
+                size="2",
+                margin_bottom="4"
+            ),
+
+            rx.vstack(
+                # Description
+                rx.vstack(
+                    rx.text("설명", size="2", weight="medium"),
+                    rx.input(
+                        value=DashboardRealtimeState.edit_description,
+                        on_change=DashboardRealtimeState.set_edit_description,
+                        placeholder="센서 설명을 입력하세요",
+                        width="100%"
+                    ),
+                    spacing="1",
+                    width="100%"
+                ),
+
+                # Unit
+                rx.vstack(
+                    rx.text("단위", size="2", weight="medium"),
+                    rx.input(
+                        value=DashboardRealtimeState.edit_unit,
+                        on_change=DashboardRealtimeState.set_edit_unit,
+                        placeholder="단위 (예: °C, %, bar)",
+                        width="100%"
+                    ),
+                    spacing="1",
+                    width="100%"
+                ),
+
+                # Range: Min and Max
+                rx.hstack(
+                    rx.vstack(
+                        rx.text("최소값", size="2", weight="medium"),
+                        rx.input(
+                            value=DashboardRealtimeState.edit_min_val,
+                            on_change=DashboardRealtimeState.update_min_val,
+                            type="number",
+                            width="100%"
+                        ),
+                        spacing="1",
+                        width="100%"
+                    ),
+                    rx.vstack(
+                        rx.text("최대값", size="2", weight="medium"),
+                        rx.input(
+                            value=DashboardRealtimeState.edit_max_val,
+                            on_change=DashboardRealtimeState.update_max_val,
+                            type="number",
+                            width="100%"
+                        ),
+                        spacing="1",
+                        width="100%"
+                    ),
+                    spacing="3",
+                    width="100%"
+                ),
+
+                # Warning Thresholds
+                rx.hstack(
+                    rx.vstack(
+                        rx.text("경고 하한", size="2", weight="medium"),
+                        rx.input(
+                            value=DashboardRealtimeState.edit_warning_low,
+                            on_change=DashboardRealtimeState.update_warning_low,
+                            type="number",
+                            width="100%"
+                        ),
+                        spacing="1",
+                        width="100%"
+                    ),
+                    rx.vstack(
+                        rx.text("경고 상한", size="2", weight="medium"),
+                        rx.input(
+                            value=DashboardRealtimeState.edit_warning_high,
+                            on_change=DashboardRealtimeState.update_warning_high,
+                            type="number",
+                            width="100%"
+                        ),
+                        spacing="1",
+                        width="100%"
+                    ),
+                    spacing="3",
+                    width="100%"
+                ),
+
+                # Critical Thresholds
+                rx.hstack(
+                    rx.vstack(
+                        rx.text("위험 하한", size="2", weight="medium"),
+                        rx.input(
+                            value=DashboardRealtimeState.edit_critical_low,
+                            on_change=DashboardRealtimeState.update_critical_low,
+                            type="number",
+                            width="100%"
+                        ),
+                        spacing="1",
+                        width="100%"
+                    ),
+                    rx.vstack(
+                        rx.text("위험 상한", size="2", weight="medium"),
+                        rx.input(
+                            value=DashboardRealtimeState.edit_critical_high,
+                            on_change=DashboardRealtimeState.update_critical_high,
+                            type="number",
+                            width="100%"
+                        ),
+                        spacing="1",
+                        width="100%"
+                    ),
+                    spacing="3",
+                    width="100%"
+                ),
+
+                spacing="4",
+                width="100%"
+            ),
+
+            rx.flex(
+                rx.dialog.close(
+                    rx.button(
+                        "취소",
+                        variant="soft",
+                        color_scheme="gray"
+                    )
+                ),
+                rx.dialog.close(
+                    rx.button(
+                        "저장",
+                        on_click=DashboardRealtimeState.save_sensor_info,
+                        variant="solid"
+                    )
+                ),
+                spacing="3",
+                margin_top="4",
+                justify="end"
+            ),
+
+            max_width="500px"
+        ),
+        open=DashboardRealtimeState.show_edit_dialog,
+        on_open_change=DashboardRealtimeState.set_show_edit_dialog
+    )
+
+
+def dashboard_realtime_page() -> rx.Component:
+    """Main dashboard page - like stock market dashboard"""
+
+    return rx.fragment(
+        # Sensor edit dialog
+        sensor_edit_dialog(),
+
+        # Main content
+        rx.vstack(
+            # Header with timestamp (NEW)
+            realtime_header(),
+
+            # Compact KPI Tiles (NEW - smaller design)
+        dashboard_kpi_tiles_compact(DashboardRealtimeState),
+
+        # Status badges row (NEW - replacing distribution bar)
+        status_badges_row(DashboardRealtimeState),
+
+        # Sensor grid
+        rx.grid(
+            rx.foreach(
+                DashboardRealtimeState.formatted_sensors,
+                lambda sensor: sensor_tile(sensor)
+            ),
+            columns="4",
+            spacing="4",
+            width="100%"
+        ),
+
+            # Alarm monitoring table
+            alarm_monitoring_table(),
+
+            spacing="3",
+            padding="4",
+            width="100%",
+        )
+    )

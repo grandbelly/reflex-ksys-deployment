@@ -1,0 +1,126 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+ENV/
+env/
+.venv
+pip-log.txt
+pip-delete-this-directory.txt
+.pytest_cache/
+*.log
+*.pot
+*.pyc
+
+# Reflex
+.web/
+*.db
+*.db-shm
+*.db-wal
+
+# Git
+.git/
+.gitignore
+.github/
+
+# Documentation
+*.md
+docs/
+README*
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Tests
+tests/
+test_*.py
+*_test.py
+ksys_app/tests/
+
+# Scripts that aren't needed in runtime
+scripts/
+*.sh
+
+# NextJS remnants
+nextjs-frontend/
+node_modules/
+
+# Screenshots and media
+screenshot/
+*.png
+*.jpg
+*.jpeg
+*.gif
+
+# Large data files
+*.csv
+*.xlsx
+*.zip
+*.tar
+*.gz
+
+# Large directories that shouldn't be in Docker
+reflex_demo/
+reflex_ui_templates/
+sample_dash/
+db/rag_knowledge/
+backups/
+data/
+example/
+node-red/
+config/
+deploy/
+dagster/
+
+# All .sql files except essential ones
+*.sql
+!ksys_app/**/*.sql
+
+# All .json files except package files
+*.json
+!package*.json
+!requirements.txt
+
+# Any Python cache or state directories
+.states/
+**/__pycache__/
+**/*.pyc
+
+# Include essential Python files
+!*.py
+!requirements.txt
+
+# Environment files
+.env*
+
+# Docker files themselves
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# Logs
+logs/
+*.log
+
+# Temporary files
+tmp/
+temp/
+cache/
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+
+# Claude/Cursor
+CLAUDE.md
+.claude/
+.cursor/

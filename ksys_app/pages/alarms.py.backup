@@ -1,0 +1,346 @@
+"""
+Alarms Page - Unified rule-based alarm monitoring
+- Clean, simple UI
+- RULE_BASE scenario alarms
+- Uses service pattern
+"""
+import reflex as rx
+from typing import Dict
+from ..states.alarms import AlarmsState
+from ..states.dashboard_realtime import DashboardRealtimeState
+from ..components.layout import shell
+from ..components.cards.stat_card import stat_card
+from ..components.alarms.filter_bar import filter_bar
+from ..components.alarms.pagination import pagination
+from ..styles.design_tokens import get_icon
+
+
+def level_badge(level: int, level_name: str) -> rx.Component:
+    """Badge for alarm level with color"""
+    color_map = {
+        5: "red",     # CRITICAL
+        4: "orange",  # ERROR
+        3: "yellow",  # WARNING
+        2: "blue",    # INFO
+        1: "gray",    # CAUTION
+    }
+
+    color = color_map.get(level, "gray")
+
+    return rx.badge(
+        level_name,
+        color_scheme=color,
+        variant="solid",
+    )
+
+
+def stat_tile(title: str, value: rx.Var, color: str = "blue") -> rx.Component:
+    """
+    Statistics tile - DEPRECATED, use stat_card instead
+    This is kept for backward compatibility only
+    """
+    return rx.box(
+        rx.vstack(
+            rx.text(title, size="2", color="#6b7280"),  # gray-500
+            rx.text(value, size="6", weight="bold", color="#111827"),  # black
+            spacing="1",
+            align="center",
+        ),
+        padding="4",
+        border_radius="lg",
+        bg="white",  # KSYS: Always white background
+        border="1px solid #e5e7eb",  # gray-200
+        width="100%",
+    )
+
+
+def alarm_card(alarm: Dict) -> rx.Component:
+    """
+    Alarm card component - Light Mode
+
+    KSYS Design: Always white background (#FFFFFF), black text (#111827)
+    """
+    return rx.box(
+        rx.vstack(
+            # Header: Level badge + Time
+            rx.flex(
+                level_badge(alarm["level"], alarm["level_name"]),
+                rx.spacer(),
+                rx.text(
+                    alarm["triggered_at_short"],
+                    size="2",
+                    color="#6b7280"  # gray-500 for timestamps
+                ),
+                justify="between",
+                align="center",
+                width="100%",
+            ),
+
+            # Message
+            rx.text(
+                alarm["message"],
+                size="3",
+                weight="medium",
+                color="#111827",  # KSYS: Always black text
+            ),
+
+            # Sensor info and action
+            rx.flex(
+                rx.hstack(
+                    rx.badge(alarm["tag_name"], variant="soft", color_scheme="blue"),
+                    rx.text(
+                        f"{alarm['value']}{alarm['unit']}",
+                        size="2",
+                        color="#6b7280"
+                    ),
+                    spacing="2",
+                ),
+                rx.spacer(),
+                rx.cond(
+                    alarm["acknowledged"],
+                    rx.badge("✓ Acknowledged", variant="soft", color_scheme="green"),
+                    rx.button(
+                        "Acknowledge",
+                        size="2",
+                        variant="soft",
+                        color_scheme="blue",
+                        on_click=lambda: AlarmsState.acknowledge_alarm(alarm["event_id"]),
+                    ),
+                ),
+                justify="between",
+                align="center",
+                width="100%",
+            ),
+
+            spacing="3",
+            align="start",
+            width="100%",
+        ),
+        padding="4",
+        bg="white",  # KSYS: Always white background
+        border="1px solid #e5e7eb",  # gray-200
+        border_radius="lg",
+        width="100%",
+        _hover={"border_color": "#3b82f6"},  # blue-500 on hover
+        class_name="transition-all duration-200",
+    )
+
+
+def alarms_page() -> rx.Component:
+    """
+    Main alarms page - Light Mode
+
+    KSYS Design: White background, black text throughout
+    """
+    return shell(
+        rx.vstack(
+            # Header
+            rx.flex(
+                rx.heading(
+                    "🚨 Alarm Dashboard",
+                    size="6",
+                    weight="bold",
+                    color="#111827",  # KSYS: Always black
+                ),
+                rx.spacer(),
+                rx.button(
+                    rx.icon("refresh-cw", size=16),
+                    "Refresh",
+                    size="2",
+                    variant="soft",
+                    color_scheme="blue",
+                    on_click=AlarmsState.refresh_data,
+                    loading=AlarmsState.loading,
+                ),
+                justify="between",
+                align="center",
+                width="100%",
+            ),
+
+            # Sensor Summary (4 cards from Dashboard)
+            rx.grid(
+                stat_card(
+                    title="Total Sensors",
+                    value=DashboardRealtimeState.total_devices,
+                    icon="cpu",
+                    color="gray",
+                ),
+                stat_card(
+                    title="Normal",
+                    value=DashboardRealtimeState.normal_count,
+                    icon="check-circle",
+                    color="green",
+                ),
+                stat_card(
+                    title="Warning",
+                    value=DashboardRealtimeState.warning_count,
+                    icon="triangle-alert",
+                    color="orange",
+                ),
+                stat_card(
+                    title="Critical",
+                    value=DashboardRealtimeState.critical_count,
+                    icon="circle-alert",
+                    color="red",
+                ),
+                columns="4",
+                spacing="3",
+                width="100%",
+            ),
+
+            # Search & Filters
+            filter_bar(
+                search_value=AlarmsState.search_query,
+                severity_filter=AlarmsState.severity_filter,
+                status_filter=AlarmsState.status_filter,
+                on_search=AlarmsState.set_search_query,
+                on_severity_change=AlarmsState.set_severity_filter,
+                on_status_change=AlarmsState.set_status_filter,
+            ),
+
+
+            # View Mode Toggle (Active / History)
+            rx.hstack(
+                rx.button(
+                    rx.icon("activity", size=16),
+                    "Active Alarms",
+                    on_click=lambda: AlarmsState.set_view_mode("active"),
+                    color_scheme=rx.cond(AlarmsState.view_mode == "active", "blue", "gray"),
+                    variant=rx.cond(AlarmsState.view_mode == "active", "solid", "soft"),
+                    size="2",
+                ),
+                rx.button(
+                    rx.icon("history", size=16),
+                    "History",
+                    on_click=lambda: AlarmsState.set_view_mode("history"),
+                    color_scheme=rx.cond(AlarmsState.view_mode == "history", "blue", "gray"),
+                    variant=rx.cond(AlarmsState.view_mode == "history", "solid", "soft"),
+                    size="2",
+                ),
+                spacing="2",
+                padding_y="2",
+            ),
+
+            # Time Range & Show Acknowledged
+            rx.hstack(
+                rx.text("Time Range:", size="2", weight="medium"),
+                rx.segmented_control.root(
+                    rx.segmented_control.item("1h", value="1"),
+                    rx.segmented_control.item("6h", value="6"),
+                    rx.segmented_control.item("24h", value="24"),
+                    rx.segmented_control.item("7d", value="168"),
+                    value=str(AlarmsState.selected_hours),  # Bind to state
+                    on_change=AlarmsState.set_hours_filter,
+                ),
+                rx.spacer(),
+                rx.switch(
+                    "Show Acknowledged",
+                    checked=AlarmsState.show_acknowledged,
+                    on_change=AlarmsState.toggle_show_acknowledged,
+                ),
+                width="100%",
+                align="center",
+            ),
+
+            # Info bar: Last Update + Alarm Count
+            rx.flex(
+                rx.text(
+                    f"Showing {AlarmsState.filtered_count} alarms",
+                    size="2",
+                    color="#6b7280",
+                    weight="medium",
+                ),
+                rx.spacer(),
+                rx.text(
+                    f"Last update: {AlarmsState.last_update}",
+                    size="2",
+                    color="#9ca3af",
+                ),
+                align="center",
+                justify="between",
+                width="100%",
+                padding="3",
+                bg="#f9fafb",  # gray-50
+                border_radius="md",
+            ),
+
+            # Error message
+            rx.cond(
+                AlarmsState.error_message != "",
+                rx.callout(
+                    AlarmsState.error_message,
+                    icon="triangle-alert",
+                    color_scheme="red",
+                ),
+                rx.box(),
+            ),
+
+            # Alarm List
+            rx.cond(
+                AlarmsState.loading,
+                rx.center(
+                    rx.vstack(
+                        rx.spinner(size="3", color="#3b82f6"),  # blue
+                        rx.text("Loading alarms...", size="2", color="#6b7280"),
+                        spacing="3",
+                        align="center",
+                    ),
+                    padding="12",
+                ),
+                rx.cond(
+                    AlarmsState.filtered_count > 0,
+                    rx.vstack(
+                        # Alarm cards (paginated)
+                        rx.vstack(
+                            rx.foreach(
+                                AlarmsState.paginated_alarms,
+                                alarm_card,
+                            ),
+                            spacing="2",
+                            width="100%",
+                        ),
+
+                        # Pagination
+                        pagination(
+                            current_page=AlarmsState.page,
+                            total_pages=AlarmsState.total_pages,
+                            total_items=AlarmsState.filtered_count,
+                            page_size=AlarmsState.page_size,
+                            on_prev=AlarmsState.prev_page,
+                            on_next=AlarmsState.next_page,
+                        ),
+
+                        spacing="4",
+                        width="100%",
+                    ),
+                    # No alarms state
+                    rx.center(
+                        rx.vstack(
+                            rx.icon("inbox", size=48, color="#9ca3af"),  # gray-400
+                            rx.text(
+                                "No alarms found",
+                                size="4",
+                                weight="bold",
+                                color="#6b7280",  # gray-500
+                            ),
+                            rx.text(
+                                "Try adjusting the filters or time range",
+                                size="2",
+                                color="#9ca3af",  # gray-400
+                            ),
+                            spacing="3",
+                            align="center",
+                        ),
+                        padding="12",
+                    ),
+                ),
+            ),
+
+            spacing="4",
+            width="100%",
+            padding="4",
+            bg="#f9fafb",  # Light gray page background
+            min_height="100vh",
+        ),
+        active_route="/alarms",
+    )
