@@ -1,0 +1,30 @@
+# Forecast Scheduler 전용 최소 요구사항
+# 용량 최적화: ML 라이브러리 + Reflex (모델 역직렬화에 필요)
+
+# Reflex (모델 pickle에 reflex 의존성이 있어서 필요)
+reflex>=0.8.9
+
+# Database drivers
+psycopg[binary,pool]>=3.1
+asyncpg>=0.30.0
+sqlalchemy>=2.0.0
+
+# Data models
+pydantic>=2.6
+
+# Data processing
+pandas>=2.0.0
+numpy>=1.24.3
+
+# ML libraries
+statsforecast>=1.7.0  # AutoARIMA, ETS
+scikit-learn>=1.3.0   # Feature engineering, metrics
+xgboost>=2.0.0        # XGBoost ML model
+prophet>=1.1.5        # Facebook Prophet
+
+# Model serialization
+joblib>=1.3.0
+dill>=0.3.8
+
+# Timezone handling
+pytz>=2024.1

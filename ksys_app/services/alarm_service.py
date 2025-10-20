@@ -163,7 +163,7 @@ class AlarmService:
                     "tag_name": row["tag_name"],
                     "sensor_type": row["sensor_type"],
                     "value": float(row["value"]) if row["value"] else 0.0,
-                    "value_formatted": f"{float(row["value"]):.2f}" if row["value"] else "0.00",
+                    "value_formatted": f"{float(row.get('value', 0)):.2f}" if row.get("value") else "0.00",
                     "unit": row["unit"] or "",
                     "threshold_low": float(row["threshold_low"]) if row["threshold_low"] else None,
                     "threshold_high": float(row["threshold_high"]) if row["threshold_high"] else None,

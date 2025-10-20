@@ -1,0 +1,87 @@
+version: "3.8"
+
+# 배포용 Docker Compose (Python 3.11 기반)
+# 기존 개발 버전과 병렬 실행
+# 사용법: docker-compose -f docker-compose.prod.yml up -d
+
+services:
+  # 배포 버전 Reflex Application
+  # 기존: reflex-ksys-app → 새 배포: reflex-ksys-app-prod
+  reflex-app-prod:
+    build:
+      context: .
+      dockerfile: Dockerfile.prod
+    container_name: reflex-ksys-app-prod
+    ports:
+      - "14000:13000"  # Frontend (개발 13000 → 배포 14000)
+      - "14001:13001"  # Backend (개발 13001 → 배포 14001)
+    environment:
+      - DOCKER_ENV=true
+      - DB_TARGET=pgai
+      # Database connection - UPDATE THIS to point to your TimescaleDB instance
+      - TS_DSN=postgresql://postgres:postgres@pgai-db:5432/ecoanp?sslmode=disable
+      - POSTGRES_CONNECTION_STRING=postgresql://postgres:postgres@pgai-db:5432/ecoanp?sslmode=disable
+      - APP_ENV=production
+      - TZ=Asia/Seoul
+      - VERSION_TYPE=FULL
+      - ENABLE_AI_FEATURES=true
+    volumes:
+      - ./ksys_app:/app/ksys_app
+      - ./rxconfig.py:/app/rxconfig.py
+      - ./logs/prod:/app/logs
+      - ./saved_models:/app/saved_models
+    networks:
+      - reflex-network-prod
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:13000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # 배포 버전 Forecasting Schedulers Service
+  # 기존: forecast-scheduler → 새 배포: forecast-scheduler-prod
+  forecast-scheduler-prod:
+    build:
+      context: .
+      dockerfile: schedulers/Dockerfile.prod
+    container_name: forecast-scheduler-prod
+    environment:
+      - DOCKER_ENV=true
+      - DB_TARGET=pgai
+      # Database connection - UPDATE THIS to point to your TimescaleDB instance
+      - TS_DSN=postgresql://postgres:postgres@pgai-db:5432/ecoanp?sslmode=disable
+      - POSTGRES_CONNECTION_STRING=postgresql://postgres:postgres@pgai-db:5432/ecoanp?sslmode=disable
+      - APP_ENV=production
+      - TZ=Asia/Seoul
+    volumes:
+      - ./ksys_app:/app/ksys_app
+      - ./saved_models:/app/saved_models
+      - ./logs/prod:/app/logs
+    networks:
+      - reflex-network-prod
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import asyncio; from ksys_app.db_orm import get_async_session; asyncio.run(get_async_session().__anext__())"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # Virtual Data Injector (배포 환경에서는 비활성화 - 필요시 주석 해제)
+  # 주석: 실제 하드웨어 센서 사용 시에는 이 서비스를 제거하세요
+  # data-injector-prod:
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile.data-injector
+  #   container_name: data-injector-prod
+  #   environment:
+  #     - TZ=Asia/Seoul
+  #   networks:
+  #     - reflex-network-prod
+  #   restart: unless-stopped
+
+networks:
+  reflex-network-prod:
+    driver: bridge
