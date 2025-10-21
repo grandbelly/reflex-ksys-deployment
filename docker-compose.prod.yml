@@ -69,6 +69,26 @@ services:
       retries: 3
       start_period: 30s
 
+  # Cloudflare Tunnel for secure external access
+  # Provides HTTPS access to your application without exposing ports
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: cloudflared-tunnel-prod
+    command: tunnel --no-autoupdate run --token eyJhIjoiMDQwMzY4ZDNlZjZjOThjYzY1OTllMTljNGVmZDkyNDEiLCJ0IjoiNzA3MWE1NWEtMTAzOS00NmUxLWJiNjUtYWJjZmNlZTAxOTkxIiwicyI6Ik1EY3pNV1JoTTJFdE1tSXlPQzAwWmpJNUxUZzFZV010TkdOak1qUXhNRGhoTXpBMSJ9
+    networks:
+      - reflex-network-prod
+    restart: unless-stopped
+    depends_on:
+      - reflex-app-prod
+    environment:
+      - TZ=Asia/Seoul
+    healthcheck:
+      test: ["CMD", "sh", "-c", "pgrep cloudflared || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
   # Virtual Data Injector (배포 환경에서는 비활성화 - 필요시 주석 해제)
   # 주석: 실제 하드웨어 센서 사용 시에는 이 서비스를 제거하세요
   # data-injector-prod:
