@@ -2,17 +2,15 @@ import reflex as rx
 from reflex.constants import LogLevel
 import os
 
-# 배포 환경에 따라 API URL 설정
-DOCKER_ENV = os.getenv("DOCKER_ENV", "false").lower() == "true"
+# 환경 감지: 프로덕션(RPI 배포) vs 개발(로컬)
 APP_ENV = os.getenv("APP_ENV", "development")
 
-# API URL: 백엔드 포트(13001)를 명시적으로 지정
-if DOCKER_ENV and APP_ENV == "production":
-    # 프로덕션: Cloudflare가 /_event를 13001로 라우팅
-    # 하지만 기본 API 호출도 13001로 가야 함
+# API URL 설정
+if APP_ENV == "production":
+    # 프로덕션: Cloudflare 도메인 사용
     api_url = "https://ksys.idna.ai.kr"
 else:
-    # 로컬 개발
+    # 개발: localhost 사용
     api_url = "http://localhost:13001"
 
 config = rx.Config(
@@ -50,8 +48,6 @@ config = rx.Config(
     cors_allowed_origins=[
         "http://localhost:13000",
         "http://localhost:13001",
-        "http://localhost:14000",
-        "http://localhost:14001",
         "https://ksys.idna.ai.kr",
         "*"
     ],
