@@ -71,10 +71,13 @@ services:
 
   # Cloudflare Tunnel for secure external access
   # Provides HTTPS access to your application without exposing ports
+  # With WebSocket support for Reflex real-time updates
   cloudflared:
     image: cloudflare/cloudflared:latest
     container_name: cloudflared-tunnel-prod
-    command: tunnel --no-autoupdate run --token eyJhIjoiMDQwMzY4ZDNlZjZjOThjYzY1OTllMTljNGVmZDkyNDEiLCJ0IjoiNzA3MWE1NWEtMTAzOS00NmUxLWJiNjUtYWJjZmNlZTAxOTkxIiwicyI6Ik1EY3pNV1JoTTJFdE1tSXlPQzAwWmpJNUxUZzFZV010TkdOak1qUXhNRGhoTXpBMSJ9
+    command: tunnel --config /etc/cloudflared/config.yml --no-autoupdate run --token eyJhIjoiMDQwMzY4ZDNlZjZjOThjYzY1OTllMTljNGVmZDkyNDEiLCJ0IjoiNzA3MWE1NWEtMTAzOS00NmUxLWJiNjUtYWJjZmNlZTAxOTkxIiwicyI6Ik1EY3pNV1JoTTJFdE1tSXlPQzAwWmpJNUxUZzFZV010TkdOak1qUXhNRGhoTXpBMSJ9
+    volumes:
+      - ./cloudflared-config.yml:/etc/cloudflared/config.yml:ro
     networks:
       - reflex-network-prod
     restart: unless-stopped

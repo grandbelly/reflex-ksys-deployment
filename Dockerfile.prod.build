@@ -1,0 +1,10 @@
+# Intermediate Dockerfile to add reflex compile to existing image
+# This extends the already-built image and adds the missing compile step
+
+FROM reflex-ksys-deployment-reflex-app-prod:latest
+
+# Reflex 컴파일 (프론트엔드 및 백엔드 assets 생성)
+RUN cd /app && reflex compile --loglevel debug || true
+
+# 앱 실행
+CMD ["reflex", "run", "--env", "prod", "--backend-host", "0.0.0.0"]

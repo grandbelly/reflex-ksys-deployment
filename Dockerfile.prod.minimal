@@ -1,0 +1,34 @@
+# Minimal working Dockerfile for Reflex (Python 3.11)
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install basic dependencies including Node.js
+RUN apt-get update && \
+    apt-get install -y curl && \
+    curl -fsSL https://deb.nodesource.com/setup_18.x | bash - && \
+    apt-get install -y nodejs && \
+    rm -rf /var/lib/apt/lists/*
+
+# Copy requirements and install
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy application
+COPY . .
+
+# Create necessary directory for assets
+RUN mkdir -p /app/assets
+
+# Create a minimal styles.css file to prevent errors
+RUN echo "/* Minimal styles for Reflex app */" > /app/assets/styles.css
+
+# Set environment variables
+ENV PYTHONUNBUFFERED=1
+ENV DOCKER_CONTAINER=true
+
+# Expose ports
+EXPOSE 13000 13001
+
+# Initialize and run - Let reflex handle everything at runtime
+CMD sh -c "reflex init && reflex run --env prod --backend-host 0.0.0.0"

@@ -1,0 +1,24 @@
+# Cloudflare Tunnel Configuration
+# WebSocket 지원을 위한 설정
+
+tunnel: 7071a55a-1039-46e1-bb65-abcfcee01991
+
+# Ingress rules - 순서가 중요합니다!
+ingress:
+  # WebSocket endpoint (/_event) - 백엔드 포트로 라우팅
+  - hostname: ksys.idna.ai.kr
+    path: /_event*
+    service: http://reflex-app-prod:13001
+    originRequest:
+      connectTimeout: 90s
+      noTLSVerify: false
+
+  # Main application - 프론트엔드 포트
+  - hostname: ksys.idna.ai.kr
+    service: http://reflex-app-prod:13000
+    originRequest:
+      connectTimeout: 90s
+      noTLSVerify: false
+
+  # Catch-all rule (필수)
+  - service: http_status:404

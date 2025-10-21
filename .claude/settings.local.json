@@ -1,0 +1,37 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dir \"c:\\reflex\\reflex-ksys-deployment\" /b)",
+      "Bash(docker ps --all --format \"table {{.Names}}\\t{{.Status}}\\t{{.Ports}}\")",
+      "Bash(docker ps --filter \"name=prod\" --format \"table {{.Names}}\\t{{.Status}}\\t{{.Ports}}\")",
+      "Bash(docker ps --filter \"name=prod\" --all --format \"table {{.Names}}\\t{{.Status}}\\t{{.Ports}}\")",
+      "Bash(docker logs reflex-ksys-app-prod --tail 100)",
+      "Bash(docker ps --filter \"name=prod\" --format \"table {{.Names}}\\t{{.Status}}\")",
+      "Bash(docker-compose -f docker-compose.prod.yml down -v)",
+      "Bash(docker-compose -f docker-compose.prod.yml build reflex-app-prod)",
+      "Bash(docker ps -a --format \"table {{.Names}}\\t{{.Status}}\\t{{.Image}}\")",
+      "Bash(python test_deployment.py)",
+      "Bash(docker inspect reflex-ksys-app-prod --format='{{.State.Health.Status}}')",
+      "Bash(docker ps -a --filter \"name=prod\" --format \"table {{.Names}}\\t{{.Status}}\\t{{.Ports}}\")",
+      "Bash(docker-compose -f docker-compose.prod.yml build --no-cache reflex-app-prod)",
+      "Bash(docker image inspect python:3.11-slim)",
+      "Bash(curl -s \"https://status.docker.com/api/v2/incidents.json\")",
+      "Bash(timeout 20 docker-compose -f docker-compose.prod.yml build reflex-app-prod)",
+      "Bash(docker build -f Dockerfile.prod.build -t reflex-ksys-deployment-reflex-app-prod:latest-fixed .)",
+      "Bash(docker run --rm reflex-ksys-deployment-reflex-app-prod:latest ls -la /app/assets)",
+      "Bash(docker run --rm reflex-ksys-deployment-reflex-app-prod:latest find /app -name \"*.py\" -type f -exec grep -l \"styles.css\" {})",
+      "Read(//c/**)",
+      "Bash(docker-compose -f docker-compose.prod.yml up -d)",
+      "Bash(docker logs reflex-ksys-app-prod --tail 30)",
+      "Bash(docker logs reflex-ksys-app-prod --tail 50)",
+      "Bash(docker logs reflex-ksys-app-prod)",
+      "Bash(docker stop temp-fix-container)",
+      "Bash(docker rm temp-fix-container)",
+      "Bash(docker build -f Dockerfile.prod.minimal -t reflex-minimal .)",
+      "Bash(docker run -d --name reflex-test-minimal -p 14000:13000 -p 14001:13001 -e TS_DSN=\"postgresql://postgres:postgres@pgai-db:5432/ecoanp?sslmode=disable\" reflex-minimal)",
+      "Bash(docker-compose -f docker-compose.prod.yml restart cloudflared)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
