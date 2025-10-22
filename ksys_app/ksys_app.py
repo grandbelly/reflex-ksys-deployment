@@ -593,22 +593,30 @@ from .states.trend_state import TrendState
 
 app = rx.App(
     theme=rx.theme(
-        appearance="dark",
+        appearance="light",
         accent_color="blue",
         gray_color="slate",
         radius="medium",
         scaling="100%",
     ),
     stylesheets=[
-        "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap",
+        "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap&crossorigin=anonymous",
         "/styles.css",
     ],
     style={
         rx.el.body: {
             "font_family": "Inter, sans-serif",
-            "background": "#0f172a",
         }
     },
+    head_components=[
+        rx.script("""
+            // Force light mode by removing dark theme from localStorage
+            if (typeof localStorage !== 'undefined') {
+                localStorage.removeItem('chakra-ui-color-mode');
+                localStorage.setItem('chakra-ui-color-mode', 'light');
+            }
+        """),
+    ],
 )
 
 # NOTE: Virtual Tag scheduler runs as a separate process

@@ -353,7 +353,16 @@ def trend_page_enhanced_v2() -> rx.Component:
                     rx.flex(
                         rx.hstack(
                             rx.icon("chart-line", size=20, color="#3b82f6"),
-                            rx.heading("D100 센서 트렌드", size="5", weight="bold", color="#111827"),
+                            rx.heading(
+                                rx.cond(
+                                    T.tag_name,
+                                    f"{T.tag_name} 센서 트렌드",
+                                    "센서 트렌드"
+                                ),
+                                size="5",
+                                weight="bold",
+                                color="#111827"
+                            ),
                             spacing="2",
                             align="center"
                         ),

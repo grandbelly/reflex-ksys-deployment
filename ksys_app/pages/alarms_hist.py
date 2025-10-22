@@ -307,7 +307,7 @@ def alarms_hist_page() -> rx.Component:
         # 필터 옵션
         rx.hstack(
             rx.select(
-                ["전체"] + ["D100", "D101", "D102", "D200", "D201", "D202", "D300", "D301", "D302"],
+                ["전체"] + AlarmHistState.sensor_list,
                 default_value="전체",
                 placeholder="센서 선택",
                 on_change=AlarmHistState.set_sensor_filter,

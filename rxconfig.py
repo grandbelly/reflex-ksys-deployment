@@ -1,17 +1,5 @@
 import reflex as rx
 from reflex.constants import LogLevel
-import os
-
-# 환경 감지: 프로덕션(RPI 배포) vs 개발(로컬)
-APP_ENV = os.getenv("APP_ENV", "development")
-
-# API URL 설정
-if APP_ENV == "production":
-    # 프로덕션: Cloudflare 도메인 사용
-    api_url = "https://ksys.idna.ai.kr"
-else:
-    # 개발: localhost 사용
-    api_url = "http://localhost:13001"
 
 config = rx.Config(
     app_name="ksys_app",
@@ -41,14 +29,16 @@ config = rx.Config(
             }
         ),
     ],
-    frontend_port=13000,
-    backend_port=13001,
+    frontend_port=14000,
+    backend_port=14001,
     backend_host="0.0.0.0",
-    api_url=api_url,
-    cors_allowed_origins=[
-        "http://localhost:13000",
-        "http://localhost:13001",
+    api_url="https://ksys.idna.ai.kr",
+    cors_allowed_origins=[        
+        "http://localhost:14000",
+        "http://localhost:14001",
         "https://ksys.idna.ai.kr",
+        "https://fonts.googleapis.com",
+        "https://fonts.gstatic.com",
         "*"
     ],
 )

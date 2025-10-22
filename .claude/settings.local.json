@@ -29,7 +29,9 @@
       "Bash(docker rm temp-fix-container)",
       "Bash(docker build -f Dockerfile.prod.minimal -t reflex-minimal .)",
       "Bash(docker run -d --name reflex-test-minimal -p 14000:13000 -p 14001:13001 -e TS_DSN=\"postgresql://postgres:postgres@pgai-db:5432/ecoanp?sslmode=disable\" reflex-minimal)",
-      "Bash(docker-compose -f docker-compose.prod.yml restart cloudflared)"
+      "Bash(docker-compose -f docker-compose.prod.yml restart cloudflared)",
+      "Bash(claude mcp add playwright)",
+      "Bash(docker ps --filter \"name=cloudflared\" --format \"table {{.Names}}\\t{{.Status}}\\t{{.Image}}\")"
     ],
     "deny": [],
     "ask": []

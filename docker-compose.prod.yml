@@ -13,8 +13,8 @@ services:
       dockerfile: Dockerfile.prod
     container_name: reflex-ksys-app-prod
     ports:
-      - "14000:13000"  # Frontend (개발 13000 → 배포 14000)
-      - "14001:13001"  # Backend (개발 13001 → 배포 14001)
+      - "14000:14000"  # Frontend
+      - "14001:14001"  # Backend
     environment:
       - DOCKER_ENV=true
       - DB_TARGET=pgai
@@ -25,6 +25,8 @@ services:
       - TZ=Asia/Seoul
       - VERSION_TYPE=FULL
       - ENABLE_AI_FEATURES=true
+      - FRONTEND_PORT=14000
+      - BACKEND_PORT=14001
     volumes:
       - ./ksys_app:/app/ksys_app
       - ./rxconfig.py:/app/rxconfig.py
@@ -32,9 +34,10 @@ services:
       - ./saved_models:/app/saved_models
     networks:
       - reflex-network-prod
+      - reflex-ksys-refactor_reflex-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:13000/"]
+      test: ["CMD", "curl", "-f", "http://localhost:14000/"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -108,3 +111,5 @@ services:
 networks:
   reflex-network-prod:
     driver: bridge
+  reflex-ksys-refactor_reflex-network:
+    external: true

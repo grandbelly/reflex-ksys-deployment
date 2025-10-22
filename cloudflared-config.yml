@@ -8,17 +8,24 @@ ingress:
   # WebSocket endpoint (/_event) - 백엔드 포트로 라우팅
   - hostname: ksys.idna.ai.kr
     path: /_event*
-    service: http://reflex-app-prod:13001
+    service: http://reflex-app-prod:14001
     originRequest:
       connectTimeout: 90s
       noTLSVerify: false
 
   # Main application - 프론트엔드 포트
   - hostname: ksys.idna.ai.kr
-    service: http://reflex-app-prod:13000
+    service: http://reflex-app-prod:14000
     originRequest:
       connectTimeout: 90s
       noTLSVerify: false
+      httpHostHeader: ksys.idna.ai.kr
+    # HTTP response headers for CORS and font loading
+    httpResponseHeaders:
+      Access-Control-Allow-Origin: "*"
+      Access-Control-Allow-Methods: "GET, POST, OPTIONS"
+      Access-Control-Allow-Headers: "*"
+      X-Font-Display: "swap"
 
   # Catch-all rule (필수)
   - service: http_status:404

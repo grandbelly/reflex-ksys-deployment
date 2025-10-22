@@ -1,17 +1,16 @@
-# Reflex Production Deployment - Multi-Stage Build
-# Stage 1: Build Frontend Assets
-FROM python:3.11-slim as builder
+# Reflex Production Deployment - Simplified Build
+FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install build dependencies
+# Install runtime dependencies including Node.js for Reflex
 RUN apt-get update && apt-get install -y \
     curl \
     git \
-    build-essential \
+    unzip \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Node.js for frontend compilation
+# Install Node.js (required by Reflex)
 RUN curl -fsSL https://deb.nodesource.com/setup_18.x | bash - \
     && apt-get install -y nodejs \
     && rm -rf /var/lib/apt/lists/*
@@ -23,32 +22,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY . .
 
-# Initialize Reflex project (creates .web directory structure)
-RUN reflex init
-
-# Export and compile frontend assets
-# This is the critical step that builds all static files
-RUN reflex export --frontend-only --no-zip
-
-# Stage 2: Production Runtime
-FROM python:3.11-slim
-
-WORKDIR /app
-
-# Install runtime dependencies only
-RUN apt-get update && apt-get install -y \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
-
-# Install Python dependencies
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-
-# Copy application code
-COPY . .
-
-# Copy compiled frontend from builder stage
-COPY --from=builder /app/.web /app/.web
+# Copy resources to assets directory for Reflex to serve
+RUN mkdir -p assets && cp -r ksys_app/resources/* assets/ 2>/dev/null || true
 
 # Set production environment variables
 ENV PYTHONUNBUFFERED=1
@@ -56,11 +31,11 @@ ENV DOCKER_CONTAINER=true
 ENV REFLEX_ENV_MODE=prod
 
 # Expose ports
-EXPOSE 13000 13001
+EXPOSE 14000 14001
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD curl -f http://localhost:13000/ || exit 1
+    CMD curl -f http://localhost:14000/ || exit 1
 
 # Run production server
 CMD ["reflex", "run", "--env", "prod", "--backend-host", "0.0.0.0"]

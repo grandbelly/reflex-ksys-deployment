@@ -39,6 +39,7 @@ class AlarmHistState(rx.State):
     showing_count: int = 0
 
     # 필터
+    sensor_list: List[str] = []  # 동적으로 로드된 센서 목록
     sensor_filter: str = "전체"
     scenario_filter: str = "전체"
     level_filter: str = "전체"
@@ -103,6 +104,15 @@ class AlarmHistState(rx.State):
         async with self:
             self.end_date = now.strftime("%Y-%m-%dT%H:%M")
             self.start_date = (now - timedelta(hours=24)).strftime("%Y-%m-%dT%H:%M")
+
+        # 센서 목록 로드
+        try:
+            sensor_query = q("SELECT tag_name FROM influx_tag ORDER BY tag_name")
+            sensors_result = await execute_query(sensor_query)
+            async with self:
+                self.sensor_list = [row['tag_name'] for row in sensors_result] if sensors_result else []
+        except Exception as e:
+            print(f"센서 목록 로드 오류: {e}")
 
         return AlarmHistState.fetch_history
 
