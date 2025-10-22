@@ -1,0 +1,67 @@
+version: "3.8"
+
+# RPI 독립 배포용 Docker Compose
+# 외부 네트워크 의존성 없음
+# 사용법: docker-compose -f docker-compose.rpi.yml up -d
+
+services:
+  # Reflex Application
+  reflex-app-prod:
+    build:
+      context: .
+      dockerfile: Dockerfile.prod
+    container_name: reflex-ksys-app-prod
+    ports:
+      - "14000:14000"  # Frontend
+      - "14001:14001"  # Backend
+    environment:
+      - DOCKER_ENV=true
+      - DB_TARGET=pgai
+      # RPI 로컬 데이터베이스 연결 (localhost 또는 RPI IP 사용)
+      - TS_DSN=postgresql://postgres:postgres@192.168.100.29:5432/ecoanp?sslmode=disable
+      - POSTGRES_CONNECTION_STRING=postgresql://postgres:postgres@192.168.100.29:5432/ecoanp?sslmode=disable
+      - APP_ENV=production
+      - TZ=Asia/Seoul
+      - VERSION_TYPE=FULL
+      - ENABLE_AI_FEATURES=true
+      - FRONTEND_PORT=14000
+      - BACKEND_PORT=14001
+    volumes:
+      - ./ksys_app:/app/ksys_app
+      - ./rxconfig.py:/app/rxconfig.py
+      - ./logs/prod:/app/logs
+      - ./saved_models:/app/saved_models
+    networks:
+      - reflex-network-prod
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:14000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # Cloudflare Tunnel for secure external access
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: cloudflared-tunnel-prod
+    command: tunnel --config /etc/cloudflared/config.yml --no-autoupdate run --token eyJhIjoiMDQwMzY4ZDNlZjZjOThjYzY1OTllMTljNGVmZDkyNDEiLCJ0IjoiNzA3MWE1NWEtMTAzOS00NmUxLWJiNjUtYWJjZmNlZTAxOTkxIiwicyI6Ik1EY3pNV1JoTTJFdE1tSXlPQzAwWmpJNUxUZzFZV010TkdOak1qUXhNRGhoTXpBMSJ9
+    volumes:
+      - ./cloudflared-config.yml:/etc/cloudflared/config.yml:ro
+    networks:
+      - reflex-network-prod
+    restart: unless-stopped
+    depends_on:
+      - reflex-app-prod
+    environment:
+      - TZ=Asia/Seoul
+    healthcheck:
+      test: ["CMD", "sh", "-c", "pgrep cloudflared || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+networks:
+  reflex-network-prod:
+    driver: bridge
