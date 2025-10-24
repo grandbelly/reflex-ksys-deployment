@@ -4,6 +4,7 @@ from reflex.constants import LogLevel
 config = rx.Config(
     app_name="ksys_app",
     loglevel=LogLevel.DEBUG,
+    show_built_with_reflex=False,
     frontend_packages=[],
     plugins=[
         rx.plugins.SitemapPlugin(),
@@ -32,14 +33,4 @@ config = rx.Config(
     frontend_port=14000,
     backend_port=14001,
     backend_host="0.0.0.0",
-    backend_transports=rx.constants.Transports.WEBSOCKET_ONLY,
-    api_url="https://ksys.idna.ai.kr",
-    cors_allowed_origins=[        
-        "http://localhost:14000",
-        "http://localhost:14001",
-        "https://ksys.idna.ai.kr",
-        "https://fonts.googleapis.com",
-        "https://fonts.gstatic.com",
-        "*"
-    ],
 )
