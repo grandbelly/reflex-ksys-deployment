@@ -6,8 +6,8 @@ services:
     build: .
     container_name: reflex-ksys-app
     ports:
-      - "13000:13000"  # Frontend
-      - "13001:13001"  # Backend
+      - "14000:14000"  # Frontend
+      - "14001:14001"  # Backend
     environment:
       - DOCKER_ENV=true
       - DB_TARGET=pgai
@@ -24,6 +24,7 @@ services:
       - ./logs:/app/logs
     networks:
       - reflex-network
+      - reflex-ksys-db_pgai-network
     restart: unless-stopped
 
   # Forecasting Schedulers Service
@@ -50,21 +51,24 @@ services:
       - ./logs:/app/logs
     networks:
       - reflex-network
+      - reflex-ksys-db_pgai-network
     restart: unless-stopped
 
   # Virtual Data Injector (for testing without real hardware)
   # Comment out this service in production
-  data-injector:
-    build:
-      context: .
-      dockerfile: Dockerfile.data-injector
-    container_name: data-injector
-    environment:
-      - TZ=Asia/Seoul
-    networks:
-      - reflex-network
-    restart: unless-stopped
+  # data-injector:
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile.data-injector
+  #   container_name: data-injector
+  #   environment:
+  #     - TZ=Asia/Seoul
+  #   networks:
+  #     - reflex-network
+  #   restart: unless-stopped
 
 networks:
   reflex-network:
     driver: bridge
+  reflex-ksys-db_pgai-network:
+    external: true

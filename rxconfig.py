@@ -32,6 +32,7 @@ config = rx.Config(
     frontend_port=14000,
     backend_port=14001,
     backend_host="0.0.0.0",
+    backend_transports=rx.constants.Transports.WEBSOCKET_ONLY,
     api_url="https://ksys.idna.ai.kr",
     cors_allowed_origins=[        
         "http://localhost:14000",

@@ -1,5 +1,5 @@
 # Reflex 앱을 위한 Dockerfile
-FROM python:3.13-slim
+FROM python:3.11-slim
 
 # 작업 디렉터리 설정
 WORKDIR /app
@@ -26,11 +26,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 # 프로젝트 파일 복사
 COPY . .
 
-# Reflex 초기화
-RUN reflex init --loglevel debug || true
+# Reflex 초기화 (ARM64에서 crash하므로 주석 처리)
+# RUN reflex init --loglevel debug || true
 
-# 포트 노출 (13000: 프론트엔드, 13001: 백엔드)
-EXPOSE 13000 13001
+# 포트 노출 (14000: 프론트엔드, 14001: 백엔드)
+EXPOSE 14000 14001
 
-# 앱 실행
-CMD ["reflex", "run", "--env", "prod", "--backend-host", "0.0.0.0"]
+# 앱 실행 (포트 명시적 지정)
+CMD ["reflex", "run", "--env", "prod", "--backend-host", "0.0.0.0", "--frontend-port", "14000", "--backend-port", "14001"]

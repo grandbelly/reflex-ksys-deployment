@@ -1,5 +1,5 @@
 
-reflex==0.8.9
+reflex==0.8.16
 psycopg[binary,pool]>=3.1
 asyncpg>=0.30.0
 sqlalchemy>=2.0.0
@@ -8,10 +8,6 @@ cachetools>=5
 reflex_chakra
 plotly>=5.17.0
 
-# AI/RAG 라이브러리 (유지)
-sentence-transformers==2.2.2
-numpy>=1.24.3
-openai>=1.35.0
 
 # 보안 라이브러리
 cryptography>=41.0.0
@@ -38,3 +34,6 @@ prophet>=1.1.5  # Facebook Prophet for time series
 # 테스팅 라이브러리
 pytest>=8.0.0
 pytest-asyncio>=0.24.0
+
+# ASGI server for ARM64 compatibility (RPI)
+hypercorn>=0.14.0
